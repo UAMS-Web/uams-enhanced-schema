@@ -18,34 +18,35 @@
  *     define('UAMS_SCHEMA_MODE', 'safe');
  */
 
-if (!defined('ABSPATH')) exit;
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 if (!defined('UAMS_SCHEMA_MODE')) {
     define('UAMS_SCHEMA_MODE', 'replace'); // 'replace' or 'safe'
 }
 
 // ─── Strip existing inline schema from templates when in replace mode ───
-if (UAMS_SCHEMA_MODE === 'replace') {
-    add_action('wp_loaded', function () {
-        ob_start(function ($html) {
-            // Only strip schema blocks that use the old http://www.schema.org context
-            // from physician and location single pages
-            if (is_singular('provider') || is_singular('location')) {
-                $html = preg_replace(
-                    '/<script\s+type=[\'"]application\/ld\+json[\'"]>\s*\{[^}]*"@context":\s*"http:\/\/www\.schema\.org".*?\}\s*<\/script>/s',
-                    '<!-- UAMS Enhanced Schema: original schema replaced -->',
-                    $html
-                );
-            }
-            return $html;
-        });
+add_action('wp_loaded', function (): void {
+    ob_start(function ($html) {
+        // Only strip schema blocks that use the old http://www.schema.org context
+        // from physician and location single pages
+        if (is_singular('provider') || is_singular('location')) {
+            return preg_replace(
+                '/<script\s+type=[\'"]application\/ld\+json[\'"]>\s*\{[^}]*"@context":\s*"http:\/\/www\.schema\.org".*?\}\s*<\/script>/s',
+                '<!-- UAMS Enhanced Schema: original schema replaced -->',
+                $html
+            );
+        }
+
+        return $html;
     });
-}
+});
 
 // ─── Output enhanced schema in wp_footer ───
 add_action('wp_footer', 'uams_enhanced_schema_output', 99);
 
-function uams_enhanced_schema_output() {
+function uams_enhanced_schema_output(): void {
     if (is_singular('provider')) {
         uams_physician_schema();
     } elseif (is_singular('location')) {
@@ -71,7 +72,7 @@ function uams_enhanced_schema_output() {
 //  PHYSICIAN SCHEMA
 // ═══════════════════════════════════════════════════════════════
 
-function uams_physician_schema() {
+function uams_physician_schema(): void {
     $post_id = get_the_ID();
 
     // ── Name ──
@@ -95,7 +96,7 @@ function uams_physician_schema() {
 
     $full_name = trim("$first $middle $last");
     $display_name = $full_name;
-    if ($degrees) {
+    if ($degrees !== []) {
         $display_name .= ', ' . implode(', ', $degrees);
     }
 
@@ -184,6 +185,7 @@ function uams_physician_schema() {
             }
         }
     }
+    
     if ($treatment_ids && is_array($treatment_ids)) {
         foreach ($treatment_ids as $tid) {
             if (get_post_status($tid) === 'publish') {
@@ -232,6 +234,7 @@ function uams_physician_schema() {
                 if ($desc) {
                     $edu_entry['description'] = $desc;
                 }
+                
                 $education[] = $edu_entry;
             }
         }
@@ -243,7 +246,9 @@ function uams_physician_schema() {
     $practice_locations = [];
     if ($location_ids && is_array($location_ids)) {
         foreach ($location_ids as $loc_id) {
-            if (get_post_status($loc_id) !== 'publish') continue;
+            if (get_post_status($loc_id) !== 'publish') {
+                continue;
+            }
 
             // Location fields use get_field with the location post ID
             // Check for parent location (child locations inherit address from parent)
@@ -268,6 +273,7 @@ function uams_physician_schema() {
                     $building_name = $bterm->name;
                 }
             }
+            
             $suite = get_field('location_suite', $addr_post_id) ?: '';
             $addr2_parts = array_filter([$building_name, $suite]);
             $addr2 = implode(' ', $addr2_parts);
@@ -357,21 +363,27 @@ function uams_physician_schema() {
     if ($middle) {
         $schema['additionalName'] = $middle;
     }
+    
     if ($prefix) {
         $schema['honorificPrefix'] = $prefix;
     }
+    
     if ($suffix) {
         $schema['honorificSuffix'] = $suffix;
     }
-    if ($degrees) {
+    
+    if ($degrees !== []) {
         $schema['honorificSuffix'] = implode(', ', $degrees);
     }
+    
     if ($clinical_title) {
         $schema['jobTitle'] = $clinical_title;
     }
+    
     if ($excerpt) {
         $schema['description'] = $excerpt;
     }
+    
     if ($npi) {
         $schema['identifier'] = [
             '@type'    => 'PropertyValue',
@@ -379,39 +391,46 @@ function uams_physician_schema() {
             'value'    => $npi,
         ];
     }
-    if ($specialties) {
+    
+    if ($specialties !== []) {
         $schema['medicalSpecialty'] = array_values(array_unique($specialties));
     }
-    if ($conditions) {
+    
+    if ($conditions !== []) {
         $schema['expertiseCondition'] = $conditions;
     }
-    if ($languages) {
+    
+    if ($languages !== []) {
         $schema['knowsLanguage'] = $languages;
     }
+    
     if ($accepting !== null && $accepting !== '') {
         $schema['isAcceptingNewPatients'] = (bool)$accepting;
     }
-    if ($education) {
+    
+    if ($education !== []) {
         $schema['hasCredential'] = $education;
     }
-    if ($certifications) {
+    
+    if ($certifications !== []) {
         $schema['hasCredential'] = array_merge(
             $schema['hasCredential'] ?? [],
-            array_map(function ($cert) {
-                return [
-                    '@type'            => 'EducationalOccupationalCredential',
-                    'credentialCategory' => 'Board Certification',
-                    'name'             => $cert,
-                ];
-            }, $certifications)
+            array_map(fn($cert): array => [
+                '@type'            => 'EducationalOccupationalCredential',
+                'credentialCategory' => 'Board Certification',
+                'name'             => $cert,
+            ], $certifications)
         );
     }
-    if ($addresses) {
+    
+    if ($addresses !== []) {
         $schema['address'] = count($addresses) === 1 ? $addresses[0] : $addresses;
     }
-    if ($practice_locations) {
+    
+    if ($practice_locations !== []) {
         $schema['workLocation'] = $practice_locations;
     }
+    
     if ($aggregate_rating) {
         $schema['aggregateRating'] = $aggregate_rating;
     }
@@ -429,7 +448,7 @@ function uams_physician_schema() {
 //  LOCATION / CLINIC SCHEMA
 // ═══════════════════════════════════════════════════════════════
 
-function uams_location_schema() {
+function uams_location_schema(): void {
     $post_id = get_the_ID();
 
     // Parent location logic (child locations may inherit address)
@@ -459,12 +478,14 @@ function uams_location_schema() {
             $building_name = $bterm->name;
         }
     }
+    
     $suite = get_field('location_suite', $addr_post_id) ?: '';
     $addr2_parts = array_filter([$building_name, $suite]);
     $addr2 = implode(' ', $addr2_parts);
     if (!$addr2) {
         $addr2 = get_field('location_address_2', $addr_post_id) ?: '';
     }
+    
     $street = trim("$addr1 $addr2");
 
     // ── Map / Geo ──
@@ -480,6 +501,7 @@ function uams_location_schema() {
     } else {
         $thumb_id = get_post_thumbnail_id($addr_post_id);
     }
+    
     if ($thumb_id) {
         $image_url = wp_get_attachment_image_url($thumb_id, 'large');
     }
@@ -511,7 +533,10 @@ function uams_location_schema() {
                 $hours = $hours_group['location_hours'] ?? [];
                 if (is_array($hours)) {
                     foreach ($hours as $hour) {
-                        if (!empty($hour['closed'])) continue;
+                        if (!empty($hour['closed'])) {
+                            continue;
+                        }
+
                         $day_abbr = uams_day_abbreviation($hour['day'] ?? '');
                         if ($day_abbr && !empty($hour['open']) && !empty($hour['close'])) {
                             $open  = date('H:i', strtotime($hour['open']));
@@ -541,8 +566,14 @@ function uams_location_schema() {
                                 'opens'     => '00:00',
                                 'closes'    => '23:59',
                             ];
-                            if ($mod_start) $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
-                            if ($mod_end_known && $mod_end_date) $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+                            if ($mod_start) {
+                                $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
+                            }
+
+                            if ($mod_end_known && $mod_end_date) {
+                                $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+                            }
+                            
                             $opening_hours_spec[] = $spec;
                         } elseif (is_array($mod_times)) {
                             foreach ($mod_times as $mt) {
@@ -556,6 +587,7 @@ function uams_location_schema() {
                                 } else {
                                     $spec['dayOfWeek'] = $day_val;
                                 }
+                                
                                 if ($closed) {
                                     $spec['opens'] = '00:00';
                                     $spec['closes'] = '00:00';
@@ -563,8 +595,15 @@ function uams_location_schema() {
                                     $spec['opens']  = date('H:i', strtotime($mt['location_modified_hours_open'] ?? ''));
                                     $spec['closes'] = date('H:i', strtotime($mt['location_modified_hours_close'] ?? ''));
                                 }
-                                if ($mod_start) $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
-                                if ($mod_end_known && $mod_end_date) $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+
+                                if ($mod_start) {
+                                    $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
+                                }
+
+                                if ($mod_end_known && $mod_end_date) {
+                                    $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+                                }
+                                
                                 $opening_hours_spec[] = $spec;
                             }
                         }
@@ -592,6 +631,7 @@ function uams_location_schema() {
         foreach ($cond_query->posts as $c) {
             $specialties[] = $c->post_title;
         }
+        
         wp_reset_postdata();
     }
 
@@ -608,6 +648,7 @@ function uams_location_schema() {
         foreach ($treat_query->posts as $t) {
             $specialties[] = $t->post_title;
         }
+        
         wp_reset_postdata();
     }
 
@@ -616,17 +657,25 @@ function uams_location_schema() {
     $available_services = [];
     if ($physicians && is_array($physicians)) {
         foreach (array_slice($physicians, 0, 50) as $doc_id) {
-            if (get_post_status($doc_id) !== 'publish') continue;
+            if (get_post_status($doc_id) !== 'publish') {
+                continue;
+            }
+
             $doc_degrees = [];
             $doc_degree_ids = get_field('physician_degree', $doc_id);
             if ($doc_degree_ids && is_array($doc_degree_ids)) {
                 foreach ($doc_degree_ids as $did) {
                     $dt = get_term($did, 'degree');
-                    if ($dt && !is_wp_error($dt)) $doc_degrees[] = $dt->name;
+                    if ($dt && !is_wp_error($dt)) {
+                        $doc_degrees[] = $dt->name;
+                    }
                 }
             }
+            
             $doc_name = get_the_title($doc_id);
-            if ($doc_degrees) $doc_name .= ', ' . implode(', ', $doc_degrees);
+            if ($doc_degrees !== []) {
+                $doc_name .= ', ' . implode(', ', $doc_degrees);
+            }
 
             $available_services[] = [
                 '@type' => 'Physician',
@@ -659,6 +708,7 @@ function uams_location_schema() {
     if ($image_url) {
         $schema['image'] = $image_url;
     }
+    
     if ($description) {
         $schema['description'] = $description;
     }
@@ -684,18 +734,19 @@ function uams_location_schema() {
         $schema['telephone'] = uams_format_phone_schema($phone);
     }
 
-    if ($opening_hours) {
+    if ($opening_hours !== []) {
         $schema['openingHours'] = $opening_hours;
     }
-    if ($opening_hours_spec) {
+    
+    if ($opening_hours_spec !== []) {
         $schema['openingHoursSpecification'] = $opening_hours_spec;
     }
 
-    if ($specialties) {
+    if ($specialties !== []) {
         $schema['medicalSpecialty'] = array_values(array_unique($specialties));
     }
 
-    if ($available_services) {
+    if ($available_services !== []) {
         $schema['availableService'] = $available_services;
     }
 
@@ -722,7 +773,7 @@ function uams_location_schema() {
 //  CONDITION SCHEMA (MedicalCondition)
 // ═══════════════════════════════════════════════════════════════
 
-function uams_condition_schema() {
+function uams_condition_schema(): void {
     $post_id = get_the_ID();
     $title   = get_the_title();
 
@@ -767,17 +818,26 @@ function uams_condition_schema() {
     $providers = [];
     if ($physician_ids && is_array($physician_ids)) {
         foreach (array_slice($physician_ids, 0, 20) as $doc_id) {
-            if (get_post_status($doc_id) !== 'publish') continue;
+            if (get_post_status($doc_id) !== 'publish') {
+                continue;
+            }
+
             $doc_degrees = [];
             $doc_degree_ids = get_field('physician_degree', $doc_id);
             if ($doc_degree_ids && is_array($doc_degree_ids)) {
                 foreach ($doc_degree_ids as $did) {
                     $dt = get_term($did, 'degree');
-                    if ($dt && !is_wp_error($dt)) $doc_degrees[] = $dt->name;
+                    if ($dt && !is_wp_error($dt)) {
+                        $doc_degrees[] = $dt->name;
+                    }
                 }
             }
+            
             $doc_name = get_the_title($doc_id);
-            if ($doc_degrees) $doc_name .= ', ' . implode(', ', $doc_degrees);
+            if ($doc_degrees !== []) {
+                $doc_name .= ', ' . implode(', ', $doc_degrees);
+            }
+            
             $providers[] = [
                 '@type' => 'Physician',
                 'name'  => $doc_name,
@@ -791,7 +851,10 @@ function uams_condition_schema() {
     $available_at = [];
     if ($location_ids && is_array($location_ids)) {
         foreach (array_slice($location_ids, 0, 20) as $loc_id) {
-            if (get_post_status($loc_id) !== 'publish') continue;
+            if (get_post_status($loc_id) !== 'publish') {
+                continue;
+            }
+
             $available_at[] = [
                 '@type' => 'MedicalClinic',
                 'name'  => get_the_title($loc_id),
@@ -815,9 +878,11 @@ function uams_condition_schema() {
     if ($description) {
         $schema['description'] = $description;
     }
-    if ($alt_names) {
+    
+    if ($alt_names !== []) {
         $schema['alternateName'] = $alt_names;
     }
+    
     if ($medline_type && $medline_type !== 'none' && $medline_code) {
         $schema['code'] = [
             '@type'       => 'MedicalCode',
@@ -826,10 +891,12 @@ function uams_condition_schema() {
         ];
         $schema['sameAs'] = 'https://medlineplus.gov/' . ($medline_type === 'topic' ? '' : 'ency/article/') . $medline_code . '.htm';
     }
-    if ($possible_treatments) {
+    
+    if ($possible_treatments !== []) {
         $schema['possibleTreatment'] = $possible_treatments;
     }
-    if ($providers) {
+    
+    if ($providers !== []) {
         $schema['associatedAnatomy'] = null; // placeholder — remove if no anatomy data
     }
 
@@ -840,7 +907,7 @@ function uams_condition_schema() {
     ];
 
     // Remove null values
-    $schema = array_filter($schema, function($v) { return $v !== null; });
+    $schema = array_filter($schema, fn($v): bool => $v !== null);
 
     uams_output_jsonld($schema);
 
@@ -852,7 +919,7 @@ function uams_condition_schema() {
 //  TREATMENT SCHEMA (MedicalProcedure / MedicalTherapy)
 // ═══════════════════════════════════════════════════════════════
 
-function uams_treatment_schema() {
+function uams_treatment_schema(): void {
     $post_id = get_the_ID();
     $title   = get_the_title();
 
@@ -897,17 +964,26 @@ function uams_treatment_schema() {
     $providers = [];
     if ($physician_ids && is_array($physician_ids)) {
         foreach (array_slice($physician_ids, 0, 20) as $doc_id) {
-            if (get_post_status($doc_id) !== 'publish') continue;
+            if (get_post_status($doc_id) !== 'publish') {
+                continue;
+            }
+
             $doc_degrees = [];
             $doc_degree_ids = get_field('physician_degree', $doc_id);
             if ($doc_degree_ids && is_array($doc_degree_ids)) {
                 foreach ($doc_degree_ids as $did) {
                     $dt = get_term($did, 'degree');
-                    if ($dt && !is_wp_error($dt)) $doc_degrees[] = $dt->name;
+                    if ($dt && !is_wp_error($dt)) {
+                        $doc_degrees[] = $dt->name;
+                    }
                 }
             }
+            
             $doc_name = get_the_title($doc_id);
-            if ($doc_degrees) $doc_name .= ', ' . implode(', ', $doc_degrees);
+            if ($doc_degrees !== []) {
+                $doc_name .= ', ' . implode(', ', $doc_degrees);
+            }
+            
             $providers[] = [
                 '@type' => 'Physician',
                 'name'  => $doc_name,
@@ -921,7 +997,10 @@ function uams_treatment_schema() {
     $available_at = [];
     if ($location_ids && is_array($location_ids)) {
         foreach (array_slice($location_ids, 0, 20) as $loc_id) {
-            if (get_post_status($loc_id) !== 'publish') continue;
+            if (get_post_status($loc_id) !== 'publish') {
+                continue;
+            }
+
             $available_at[] = [
                 '@type' => 'MedicalClinic',
                 'name'  => get_the_title($loc_id),
@@ -948,9 +1027,11 @@ function uams_treatment_schema() {
     if ($description) {
         $schema['description'] = $description;
     }
-    if ($alt_names) {
+    
+    if ($alt_names !== []) {
         $schema['alternateName'] = $alt_names;
     }
+    
     if ($medline_type && $medline_type !== 'none' && $medline_code) {
         $schema['code'] = [
             '@type'        => 'MedicalCode',
@@ -959,10 +1040,12 @@ function uams_treatment_schema() {
         ];
         $schema['sameAs'] = 'https://medlineplus.gov/' . ($medline_type === 'topic' ? '' : 'ency/article/') . $medline_code . '.htm';
     }
-    if ($conditions) {
+    
+    if ($conditions !== []) {
         $schema['indication'] = $conditions;
     }
-    if ($available_at) {
+    
+    if ($available_at !== []) {
         $schema['availableService'] = $available_at;
     }
 
@@ -988,8 +1071,10 @@ function uams_treatment_schema() {
 //  to output FAQ schema for manually-curated Q&A blocks.
 // ═══════════════════════════════════════════════════════════════
 
-function uams_maybe_faq_schema($post_id = null) {
-    if (!$post_id) $post_id = get_the_ID();
+function uams_maybe_faq_schema($post_id = null): void {
+    if (!$post_id) {
+        $post_id = get_the_ID();
+    }
 
     $questions = [];
 
@@ -1015,13 +1100,15 @@ function uams_maybe_faq_schema($post_id = null) {
         }
     }
 
-    if ($questions) {
+    if ($questions !== []) {
         uams_output_faq_schema($questions);
     }
 }
 
-function uams_output_faq_schema($questions) {
-    if (empty($questions)) return;
+function uams_output_faq_schema($questions): void {
+    if (empty($questions)) {
+        return;
+    }
 
     $main_entity = [];
     foreach ($questions as $qa) {
@@ -1048,7 +1135,7 @@ function uams_output_faq_schema($questions) {
 //  BREADCRUMB SCHEMA
 // ═══════════════════════════════════════════════════════════════
 
-function uams_breadcrumb_schema() {
+function uams_breadcrumb_schema(): void {
     $items = [];
     $pos = 1;
 
@@ -1112,7 +1199,8 @@ function uams_breadcrumb_schema() {
                 }
             }
         }
-        $label = $degrees ? $full_name . ', ' . implode(', ', $degrees) : $full_name;
+        
+        $label = $degrees !== [] ? $full_name . ', ' . implode(', ', $degrees) : $full_name;
     } else {
         $label = get_the_title();
     }
@@ -1136,7 +1224,7 @@ function uams_breadcrumb_schema() {
 //  ORGANIZATION SCHEMA (homepage)
 // ═══════════════════════════════════════════════════════════════
 
-function uams_organization_schema() {
+function uams_organization_schema(): void {
     $schema = [
         '@context'   => 'https://schema.org',
         '@type'      => 'MedicalOrganization',
@@ -1174,7 +1262,7 @@ function uams_organization_schema() {
 //  HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-function uams_output_jsonld($data) {
+function uams_output_jsonld($data): void {
     echo "\n" . '<script type="application/ld+json">' . "\n";
     echo wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     echo "\n</script>\n";
@@ -1185,13 +1273,15 @@ function uams_format_phone_schema($phone) {
     if (strlen($digits) === 10) {
         return '+1-' . substr($digits, 0, 3) . '-' . substr($digits, 3, 3) . '-' . substr($digits, 6);
     }
+    
     if (strlen($digits) === 11 && $digits[0] === '1') {
         return '+1-' . substr($digits, 1, 3) . '-' . substr($digits, 4, 3) . '-' . substr($digits, 7);
     }
+    
     return $phone;
 }
 
-function uams_day_abbreviation($day) {
+function uams_day_abbreviation($day): string {
     $map = [
         'Monday'    => 'Mo', 'Tuesday'  => 'Tu', 'Wednesday' => 'We',
         'Thursday'  => 'Th', 'Friday'   => 'Fr', 'Saturday'  => 'Sa',

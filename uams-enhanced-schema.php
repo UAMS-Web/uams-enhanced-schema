@@ -894,7 +894,7 @@ function uams_condition_schema(): void
             'codingSystem' => 'MedlinePlus',
             'codeValue' => $medline_code,
         ];
-        $schema['sameAs'] = 'https://medlineplus.gov/'.($medline_type === 'topic' ? '' : 'ency/article/').$medline_code.'.htm';
+        $schema['sameAs'] = 'https://medlineplus.gov/'.($medline_type === 'topic' ? '' : 'ency/article/').rawurlencode($medline_code).'.htm';
     }
 
     if ($possible_treatments !== []) {
@@ -1044,7 +1044,7 @@ function uams_treatment_schema(): void
             'codingSystem' => 'MedlinePlus',
             'codeValue' => $medline_code,
         ];
-        $schema['sameAs'] = 'https://medlineplus.gov/'.($medline_type === 'topic' ? '' : 'ency/article/').$medline_code.'.htm';
+        $schema['sameAs'] = 'https://medlineplus.gov/'.($medline_type === 'topic' ? '' : 'ency/article/').rawurlencode($medline_code).'.htm';
     }
 
     if ($conditions !== []) {
@@ -1275,7 +1275,9 @@ function uams_organization_schema(): void
 function uams_output_jsonld($data): void
 {
     echo "\n".'<script type="application/ld+json">'."\n";
-    echo wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    // JSON_HEX_TAG and JSON_HEX_AMP keep a "</script>" or "&" inside a value from ending the
+    // script element or being read as an entity; slashes stay unescaped for readable URLs.
+    echo wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP);
     echo "\n</script>\n";
 }
 

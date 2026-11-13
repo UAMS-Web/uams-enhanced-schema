@@ -1,0 +1,25 @@
+parameters:
+	ignoreErrors:
+		-
+			rawMessage: Function get_field not found.
+			identifier: function.notFound
+			count: 69
+			path: uams-enhanced-schema.php
+
+		-
+			rawMessage: Function get_sub_field not found.
+			identifier: function.notFound
+			count: 7
+			path: uams-enhanced-schema.php
+
+		-
+			rawMessage: Function have_rows not found.
+			identifier: function.notFound
+			count: 5
+			path: uams-enhanced-schema.php
+
+		-
+			rawMessage: Function the_row not found.
+			identifier: function.notFound
+			count: 2
+			path: uams-enhanced-schema.php

@@ -9,6 +9,11 @@
 # While the switch is off, the local CI runner (.claude/skills/local-ci/) is
 # the whole gate, not a fallback. Its verdict is posted on the pull request.
 # Job list mirrors local-ci.json; keep the two in step.
+#
+# PHP versions: `lint` runs on 7.4, the plugin's floor, and needs no Composer
+# install. The tooling jobs run on 8.4 because composer.lock is resolved for it
+# and the dev tools need it (Pint 8.3+, doctrine/instantiator 8.4+); none of
+# them ship in the plugin.
 name: CI
 
 on:
@@ -46,7 +51,7 @@ jobs:
       - name: php -l every PHP file
         run: |
           set -e
-          find . -name '*.php' -not -path './vendor/*' -not -path './vendor' -not -path './tests-legacy/*' -not -path './tests-legacy' -print0 \
+          find . -name '*.php' -not -path './vendor/*' -not -path './vendor' -not -path './tests-legacy/*' -not -path './tests-legacy' -not -name 'rector*.php' -print0 \
             | xargs -0 -I{} php -l "{}"
 
   pint:
@@ -57,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: '8.4'
           coverage: none
           tools: composer
       - run: composer install --no-interaction --prefer-dist --no-progress
@@ -72,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: '8.4'
           coverage: none
           tools: composer
       - run: composer install --no-interaction --prefer-dist --no-progress
@@ -87,7 +92,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: '8.4'
           coverage: none
           tools: composer
       - run: composer install --no-interaction --prefer-dist --no-progress
@@ -102,7 +107,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '7.4'
+          php-version: '8.4'
           coverage: none
           tools: composer
       - run: composer install --no-interaction --prefer-dist --no-progress

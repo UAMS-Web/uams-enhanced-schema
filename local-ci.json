@@ -20,7 +20,8 @@
       "each": [
         "**/*.php",
         "!vendor/**",
-        "!tests-legacy/**"
+        "!tests-legacy/**",
+        "!rector*.php"
       ],
       "always": true
     },

@@ -16,6 +16,8 @@ composer setup:integration
 composer test:integration
 ```
 
+Run `composer setup:integration` before `composer stan` too: PHPStan reads the WordPress test classes from that install.
+
 
 ## Local CI
 

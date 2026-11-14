@@ -96,6 +96,8 @@ jobs:
           coverage: none
           tools: composer
       - run: composer install --no-interaction --prefer-dist --no-progress
+      # PHPStan resolves WP_UnitTestCase from the Integration suite's own install.
+      - run: composer setup:integration --no-interaction
       - name: phpstan
         run: composer stan
 

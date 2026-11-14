@@ -47,7 +47,7 @@ function uams_enhanced_schema_register_stripping(string $mode): void
     }
 
     add_action('wp_loaded', function (): void {
-        ob_start(function ($html) {
+        ob_start(function (string $html): ?string {
             // Only strip schema blocks that use the old http://www.schema.org context
             // from physician and location single pages
             if (is_singular('provider') || is_singular('location')) {
@@ -103,11 +103,11 @@ function uams_physician_schema(): void
     }
 
     // ── Name ──
-    $first = get_field('physician_first_name', $post_id) ?: '';
-    $middle = get_field('physician_middle_name', $post_id) ?: '';
-    $last = get_field('physician_last_name', $post_id) ?: '';
-    $prefix = get_field('physician_prefix', $post_id) ?: '';
-    $suffix = get_field('physician_suffix', $post_id) ?: '';
+    $first = uams_field_text('physician_first_name', $post_id);
+    $middle = uams_field_text('physician_middle_name', $post_id);
+    $last = uams_field_text('physician_last_name', $post_id);
+    $prefix = uams_field_text('physician_prefix', $post_id);
+    $suffix = uams_field_text('physician_suffix', $post_id);
 
     // Degrees — taxonomy term IDs in 'degree' taxonomy
     $degree_ids = get_field('physician_degree', $post_id);
@@ -126,7 +126,7 @@ function uams_physician_schema(): void
     }
 
     // ── Clinical title / specialty — taxonomy term ID ──
-    $title_id = get_field('physician_title', $post_id);
+    $title_id = uams_id(get_field('physician_title', $post_id));
     $clinical_title = '';
     if ($title_id) {
         $term = get_term($title_id, 'clinical_title');
@@ -136,8 +136,8 @@ function uams_physician_schema(): void
     }
 
     // ── Description ──
-    $short_clinical_bio = get_field('physician_short_clinical_bio', $post_id);
-    $clinical_bio = get_field('physician_clinical_bio', $post_id);
+    $short_clinical_bio = uams_field_text('physician_short_clinical_bio', $post_id);
+    $clinical_bio = uams_field_text('physician_clinical_bio', $post_id);
     $excerpt = '';
     if ($short_clinical_bio) {
         $excerpt = wp_strip_all_tags($short_clinical_bio);
@@ -166,7 +166,7 @@ function uams_physician_schema(): void
     }
 
     // ── NPI ──
-    $npi = get_field('physician_npi', $post_id) ?: '';
+    $npi = uams_field_text('physician_npi', $post_id);
 
     // ── Accepting new patients ──
     $accepting = get_field('physician_accepting_patients', $post_id);
@@ -208,7 +208,7 @@ function uams_physician_schema(): void
             the_row();
 
             // school — taxonomy 'school' term ID
-            $school_id = get_sub_field('school');
+            $school_id = uams_id(get_sub_field('school'));
             $school_name = '';
             if ($school_id) {
                 $term = get_term($school_id, 'school');
@@ -218,7 +218,7 @@ function uams_physician_schema(): void
             }
 
             // education_type — taxonomy 'educationtype' term ID
-            $type_id = get_sub_field('education_type');
+            $type_id = uams_id(get_sub_field('education_type'));
             $type_name = '';
             if ($type_id) {
                 $term = get_term($type_id, 'educationtype');
@@ -227,7 +227,7 @@ function uams_physician_schema(): void
                 }
             }
 
-            $desc = get_sub_field('description') ?: '';
+            $desc = uams_string(get_sub_field('description'));
 
             if ($school_name) {
                 $edu_entry = [
@@ -259,19 +259,19 @@ function uams_physician_schema(): void
         // Location fields use get_field with the location post ID
         // Check for parent location (child locations inherit address from parent)
         $has_parent = get_field('location_parent', $loc_id);
-        $parent_id = get_field('location_parent_id', $loc_id);
+        $parent_id = uams_id(get_field('location_parent_id', $loc_id));
         $addr_post_id = $loc_id;
         if ($has_parent && $parent_id) {
             $addr_post_id = $parent_id;
         }
 
-        $addr1 = get_field('location_address_1', $addr_post_id) ?: '';
-        $city = get_field('location_city', $addr_post_id) ?: '';
-        $state = get_field('location_state', $addr_post_id) ?: '';
-        $zip = get_field('location_zip', $addr_post_id) ?: '';
+        $addr1 = uams_field_text('location_address_1', $addr_post_id);
+        $city = uams_field_text('location_city', $addr_post_id);
+        $state = uams_field_text('location_state', $addr_post_id);
+        $zip = uams_field_text('location_zip', $addr_post_id);
 
         // Building and floor (taxonomy + select field)
-        $building_id = get_field('location_building', $addr_post_id);
+        $building_id = uams_id(get_field('location_building', $addr_post_id));
         $building_name = '';
         if ($building_id) {
             $bterm = get_term($building_id, 'building');
@@ -280,11 +280,11 @@ function uams_physician_schema(): void
             }
         }
 
-        $suite = get_field('location_suite', $addr_post_id) ?: '';
+        $suite = uams_field_text('location_suite', $addr_post_id);
         $addr2_parts = array_filter([$building_name, $suite]);
         $addr2 = implode(' ', $addr2_parts);
         if (! $addr2) {
-            $addr2 = get_field('location_address_2', $addr_post_id) ?: '';
+            $addr2 = uams_field_text('location_address_2', $addr_post_id);
         }
 
         $street = trim("$addr1 $addr2");
@@ -309,7 +309,7 @@ function uams_physician_schema(): void
 
         // Phone — included via location-card template which sets $location_phone
         // We access it directly from location fields
-        $phone = get_field('location_phone', $loc_id);
+        $phone = uams_field_text('location_phone', $loc_id);
         if ($phone) {
             $loc_entry['telephone'] = uams_format_phone_schema($phone);
         }
@@ -321,25 +321,19 @@ function uams_physician_schema(): void
     $aggregate_rating = null;
     $pg_rating_data = get_post_meta($post_id, '_syndicated_api_data', true);
     if ($npi && is_object($pg_rating_data)) {
-        if (isset($pg_rating_data->status->code) && $pg_rating_data->status->code == '200') {
-            // A default of -1 or 1 stays below the 30-rating floor like 0.
-            // @pest-mutate-ignore:DecrementInteger,IncrementInteger
-            $total_ratings = $pg_rating_data->data->entities[0]->totalRatingCount ?? 0;
+        if (uams_dig($pg_rating_data, 'status', 'code') == '200') {
+            $total_ratings = uams_number(uams_dig($pg_rating_data, 'data', 'entities', 0, 'totalRatingCount'));
             if ($total_ratings >= 30) {
-                $rating_value = $pg_rating_data->data->entities[0]->overallRating->value ?? null;
-                // A default of -1 is falsy-or-not-positive like 0, so no review count is written either way.
-                // @pest-mutate-ignore:DecrementInteger
-                $comment_count = $pg_rating_data->data->entities[0]->totalCommentCount ?? 0;
+                $rating_value = uams_text(uams_dig($pg_rating_data, 'data', 'entities', 0, 'overallRating', 'value'));
+                $comment_count = uams_number(uams_dig($pg_rating_data, 'data', 'entities', 0, 'totalCommentCount'));
                 if ($rating_value) {
                     $aggregate_rating = [
                         '@type' => 'AggregateRating',
-                        'ratingValue' => (string) $rating_value,
+                        'ratingValue' => $rating_value,
                         'bestRating' => '5',
                         'ratingCount' => (string) $total_ratings,
                     ];
-                    // A zero or negative count writes nothing either way, and zero is already falsy before the comparison.
-                    // @pest-mutate-ignore:DecrementInteger,GreaterToGreaterOrEqual
-                    if ($comment_count && $comment_count > 0) {
+                    if ($comment_count > 0) {
                         $aggregate_rating['reviewCount'] = (string) $comment_count;
                     }
                 }
@@ -466,7 +460,7 @@ function uams_location_schema(): void
 
     // Parent location logic (child locations may inherit address)
     $has_parent = get_field('location_parent', $post_id);
-    $parent_id = get_field('location_parent_id', $post_id);
+    $parent_id = uams_id(get_field('location_parent_id', $post_id));
     $addr_post_id = $post_id;
     if ($has_parent && $parent_id) {
         $parent_post = get_post($parent_id);
@@ -478,12 +472,12 @@ function uams_location_schema(): void
     $page_title = get_the_title();
 
     // ── Address ──
-    $addr1 = get_field('location_address_1', $addr_post_id) ?: '';
-    $city = get_field('location_city', $addr_post_id) ?: '';
-    $state = get_field('location_state', $addr_post_id) ?: '';
-    $zip = get_field('location_zip', $addr_post_id) ?: '';
+    $addr1 = uams_field_text('location_address_1', $addr_post_id);
+    $city = uams_field_text('location_city', $addr_post_id);
+    $state = uams_field_text('location_state', $addr_post_id);
+    $zip = uams_field_text('location_zip', $addr_post_id);
 
-    $building_id = get_field('location_building', $addr_post_id);
+    $building_id = uams_id(get_field('location_building', $addr_post_id));
     $building_name = '';
     if ($building_id) {
         $bterm = get_term($building_id, 'building');
@@ -492,17 +486,17 @@ function uams_location_schema(): void
         }
     }
 
-    $suite = get_field('location_suite', $addr_post_id) ?: '';
+    $suite = uams_field_text('location_suite', $addr_post_id);
     $addr2_parts = array_filter([$building_name, $suite]);
     $addr2 = implode(' ', $addr2_parts);
     if (! $addr2) {
-        $addr2 = get_field('location_address_2', $addr_post_id) ?: '';
+        $addr2 = uams_field_text('location_address_2', $addr_post_id);
     }
 
     $street = trim("$addr1 $addr2");
 
     // ── Map / Geo ──
-    $map = get_field('location_map', $addr_post_id);
+    $map = uams_array(get_field('location_map', $addr_post_id));
 
     // ── Image ──
     $image_url = '';
@@ -520,8 +514,8 @@ function uams_location_schema(): void
     }
 
     // ── Description ──
-    $short_desc = get_field('location_short_desc', $post_id);
-    $about = get_field('location_about', $post_id);
+    $short_desc = uams_field_text('location_short_desc', $post_id);
+    $about = uams_field_text('location_about', $post_id);
     $description = '';
     if ($short_desc) {
         $description = wp_strip_all_tags($short_desc);
@@ -530,11 +524,11 @@ function uams_location_schema(): void
     }
 
     // ── Hours ──
-    $hours_group = get_field('location_hours_group', $post_id);
+    $hours_group = uams_array(get_field('location_hours_group', $post_id));
     $opening_hours = [];
     $opening_hours_spec = [];
 
-    if ($hours_group) {
+    if ($hours_group !== []) {
         $hours_vary = $hours_group['location_hours_variable'] ?? false;
         $is_247 = $hours_group['location_24_7'] ?? false;
         $has_modified = $hours_group['location_modified_hours'] ?? false;
@@ -560,10 +554,12 @@ function uams_location_schema(): void
 
             // Modified hours → openingHoursSpecification
             if ($has_modified) {
-                $mod_start = $hours_group['location_modified_hours_start_date'] ?? '';
+                $mod_start = uams_string($hours_group['location_modified_hours_start_date'] ?? null);
                 $mod_end_known = $hours_group['location_modified_hours_end'] ?? false;
-                $mod_end_date = $hours_group['location_modified_hours_end_date'] ?? '';
+                $mod_end_date = uams_string($hours_group['location_modified_hours_end_date'] ?? null);
                 $mod_groups = $hours_group['location_modified_hours_group'] ?? [];
+                $valid_from = uams_calendar_date($mod_start);
+                $valid_through = $mod_end_known ? uams_calendar_date($mod_end_date) : null;
 
                 foreach (uams_rows($mod_groups) as $mod_group) {
                     $mod_247 = $mod_group['location_modified_hours_24_7'] ?? false;
@@ -576,12 +572,12 @@ function uams_location_schema(): void
                             'opens' => '00:00',
                             'closes' => '23:59',
                         ];
-                        if ($mod_start) {
-                            $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
+                        if ($valid_from !== null) {
+                            $spec['validFrom'] = $valid_from;
                         }
 
-                        if ($mod_end_known && $mod_end_date) {
-                            $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+                        if ($valid_through !== null) {
+                            $spec['validThrough'] = $valid_through;
                         }
 
                         $opening_hours_spec[] = $spec;
@@ -613,12 +609,12 @@ function uams_location_schema(): void
                                 }
                             }
 
-                            if ($mod_start) {
-                                $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
+                            if ($valid_from !== null) {
+                                $spec['validFrom'] = $valid_from;
                             }
 
-                            if ($mod_end_known && $mod_end_date) {
-                                $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+                            if ($valid_through !== null) {
+                                $spec['validThrough'] = $valid_through;
                             }
 
                             $opening_hours_spec[] = $spec;
@@ -630,7 +626,7 @@ function uams_location_schema(): void
     }
 
     // ── Phone ──
-    $phone = get_field('location_phone', $post_id);
+    $phone = uams_field_text('location_phone', $post_id);
 
     // ── Conditions & Treatments ──
     $condition_ids = get_field('location_conditions_cpt', $post_id);
@@ -702,7 +698,7 @@ function uams_location_schema(): void
     $temporarily_closed = false;
     if ($closing) {
         $closing_length = get_field('location_closing_length', $post_id);
-        $closing_date = get_field('location_closing_date', $post_id);
+        $closing_date = uams_field_text('location_closing_date', $post_id);
         // A tie between now and the closing date differs by under a microsecond, so the comparison cannot be told apart.
         // @pest-mutate-ignore:GreaterOrEqualToGreater
         if ($closing_date && new DateTime >= new DateTime($closing_date)) {
@@ -830,8 +826,8 @@ function uams_condition_schema(): void
     }
 
     // MedlinePlus code
-    $medline_type = get_field('medline_code_type', $post_id);
-    $medline_code = get_field('medline_code_id', $post_id);
+    $medline_type = uams_field_text('medline_code_type', $post_id);
+    $medline_code = uams_field_text('medline_code_id', $post_id);
 
     // Build schema
     $schema = [
@@ -936,8 +932,8 @@ function uams_treatment_schema(): void
     }
 
     // MedlinePlus code
-    $medline_type = get_field('medline_code_type', $post_id);
-    $medline_code = get_field('medline_code_id', $post_id);
+    $medline_type = uams_field_text('medline_code_type', $post_id);
+    $medline_code = uams_field_text('medline_code_id', $post_id);
 
     // Determine type: MedicalProcedure for surgical, MedicalTherapy for non-surgical
     // Default to MedicalProcedure — can be refined with an ACF field later
@@ -1021,8 +1017,8 @@ function uams_maybe_faq_schema($post_id = null): void
     if ($faq_field) {
         while (have_rows($faq_field, $post_id)) {
             the_row();
-            $q = get_sub_field('question') ?: get_sub_field('faq_question') ?: '';
-            $a = get_sub_field('answer') ?: get_sub_field('faq_answer') ?: '';
+            $q = uams_string(get_sub_field('question') ?: get_sub_field('faq_question'));
+            $a = uams_string(get_sub_field('answer') ?: get_sub_field('faq_answer'));
             if ($q && $a) {
                 $questions[] = [
                     'question' => wp_strip_all_tags($q),
@@ -1106,7 +1102,7 @@ function uams_breadcrumb_schema(): void
     // Parent location for child locations
     if ($post_type === 'location') {
         $has_parent = get_field('location_parent');
-        $parent_id = get_field('location_parent_id');
+        $parent_id = uams_id(get_field('location_parent_id'));
         if ($has_parent && $parent_id) {
             $parent_post = get_post($parent_id);
             if ($parent_post) {
@@ -1123,9 +1119,9 @@ function uams_breadcrumb_schema(): void
     // Last item — use display name for providers, post_title for everything else
     if ($post_type === 'provider') {
         $post_id = get_the_ID();
-        $first = get_field('physician_first_name', $post_id) ?: '';
-        $middle = get_field('physician_middle_name', $post_id) ?: '';
-        $last = get_field('physician_last_name', $post_id) ?: '';
+        $first = uams_field_text('physician_first_name', $post_id);
+        $middle = uams_field_text('physician_middle_name', $post_id);
+        $last = uams_field_text('physician_last_name', $post_id);
         $full_name = trim("$first $middle $last");
 
         $degree_ids = get_field('physician_degree', $post_id);
@@ -1215,9 +1211,94 @@ function uams_output_jsonld($data): void
 }
 
 /**
+ * Read an ACF field as text: a string stays as it is, a number becomes its decimal text, anything else is empty.
+ *
+ * @param  int|false  $post_id  The post to read, or false for the current post.
+ */
+function uams_field_text(string $name, $post_id = false): string
+{
+    return uams_text(get_field($name, $post_id));
+}
+
+/**
+ * Read a value as text: a string stays as it is, a number becomes its decimal text, anything else is empty.
+ *
+ * @param  mixed  $value  The raw value.
+ */
+function uams_text($value): string
+{
+    return is_int($value) || is_float($value) ? (string) $value : uams_string($value);
+}
+
+/**
+ * Read a value as a number: a number stays as it is, numeric text is converted, anything else is zero.
+ *
+ * @param  mixed  $value  The raw value.
+ * @return int|float
+ */
+function uams_number($value)
+{
+    if (is_int($value) || is_float($value)) {
+        return $value;
+    }
+
+    if (! is_string($value) || ! is_numeric($value)) {
+        return 0;
+    }
+
+    return str_contains($value, '.') ? (float) $value : (int) $value;
+}
+
+/**
+ * Read a value as a post or term id: an integer or digit-only text, else zero.
+ *
+ * @param  mixed  $value  The raw value.
+ */
+function uams_id($value): int
+{
+    if (is_int($value)) {
+        return $value;
+    }
+
+    return is_string($value) && ctype_digit($value) ? (int) $value : 0;
+}
+
+/**
+ * Read a field group or map as an array, or an empty array for anything else.
+ *
+ * @param  mixed  $value  The raw value.
+ * @return array<array-key, mixed>
+ */
+function uams_array($value): array
+{
+    return is_array($value) ? $value : [];
+}
+
+/**
+ * Read a nested value out of arrays and objects by a path of keys, or null where a step is missing.
+ *
+ * @param  mixed  $node  The structure to read.
+ * @return mixed
+ */
+function uams_dig($node, string|int ...$path)
+{
+    foreach ($path as $key) {
+        if (is_object($node)) {
+            $node = $node->{$key} ?? null;
+        } elseif (is_array($node)) {
+            $node = $node[$key] ?? null;
+        } else {
+            return null;
+        }
+    }
+
+    return $node;
+}
+
+/**
  * Read the post or term ids an ACF relationship or taxonomy field holds.
  *
- * Integers and digit-only strings count as ids; anything else, and a field that is not a list, yields nothing.
+ * Positive integers and digit-only strings count as ids; anything else, and a field that is not a list, yields nothing.
  *
  * @param  mixed  $value  The raw field value.
  * @return list<int>
@@ -1225,11 +1306,10 @@ function uams_output_jsonld($data): void
 function uams_id_list($value): array
 {
     $ids = [];
-    foreach (is_array($value) ? $value : [] as $id) {
-        if (is_int($id)) {
+    foreach (uams_array($value) as $raw) {
+        $id = uams_id($raw);
+        if ($id > 0) {
             $ids[] = $id;
-        } elseif (is_string($id) && ctype_digit($id)) {
-            $ids[] = (int) $id;
         }
     }
 
@@ -1272,6 +1352,16 @@ function uams_clock_time(string $text): ?string
     $time = strtotime($text);
 
     return $time === false ? null : date('H:i', $time);
+}
+
+/**
+ * Format a date such as "2030-12-26" as YYYY-MM-DD, or return null when the text is not a date.
+ */
+function uams_calendar_date(string $text): ?string
+{
+    $time = strtotime($text);
+
+    return $time === false ? null : date('Y-m-d', $time);
 }
 
 /**

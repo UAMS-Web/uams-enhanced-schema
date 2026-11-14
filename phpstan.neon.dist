@@ -59,7 +59,7 @@ parameters:
     # from 0 upward (see the code-quality skill), then raise it by one per
     # change as findings are fixed, until `max`. Lowering it is a deliberate,
     # argued change, not a quiet edit to get a red run green.
-    level: 9
+    level: 10
 
     excludePaths:
         analyse:
@@ -179,6 +179,14 @@ parameters:
             message: '#^Undefined variable: \$this$#'
             path: tests/Pest.php
             reportUnmatched: false
+        # Crediting Mockery's expectation count to the running test is
+        # PHPUnit's @internal addToAssertionCount(), reached from the
+        # afterEach hook in tests/Pest.php. Pinned to that file and method; an
+        # unmatched entry fails the run.
+        -
+            identifier: method.internal
+            message: '#TestCase::addToAssertionCount\(\)#'
+            path: tests/Pest.php
         # `$this` inside an `it()` closure analyzes as PHPUnit's TestCase
         # whatever `uses(...)->in('Integration')` binds, so a WP_UnitTestCase
         # method such as `go_to()` reads as undefined. Scoped to that suite.

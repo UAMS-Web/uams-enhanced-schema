@@ -25,7 +25,7 @@ if (! class_exists('WP_Query', false)) {
  * (post titles a conditions or treatments query finds, by post type), `status` and
  * `titles` (by post id), `page_title`.
  *
- * @param  array{fields?: array<int, array<string, mixed>>, terms?: array<string, array<int, mixed>>, parent?: mixed, thumbs?: array<int, int>, attachments?: array<int, string>, queries?: array<string, list<string>>, status?: array<int, string>, titles?: array<int, string>, page_title?: string}  $o
+ * @param  array{fields?: array<int, array<array-key, mixed>>, terms?: array<string, array<int, mixed>>, parent?: mixed, thumbs?: array<int, int>, attachments?: array<int, string>, queries?: array<string, list<string>>, status?: array<int, string>, titles?: array<int, string>, page_title?: string}  $o
  * @return array<array-key, mixed>
  */
 function location_schema_for(array $o = []): array
@@ -77,8 +77,8 @@ function location_schema_for(array $o = []): array
 /**
  * The fields of location 10 with an hours group set.
  *
- * @param  array<string, mixed>  $group
- * @return array{fields: array<int, array<string, mixed>>}
+ * @param  array<array-key, mixed>  $group
+ * @return array{fields: array<int, array<array-key, mixed>>}
  */
 function location_with_hours(array $group): array
 {
@@ -593,4 +593,20 @@ it('leaves opens and closes out of a modified-hours entry whose time is not a ti
 
     expect(schema_at($schema, 'openingHoursSpecification.0'))->toBe(['@type' => 'OpeningHoursSpecification', 'dayOfWeek' => 'Sunday', 'closes' => '23:30'])
         ->and(schema_at($schema, 'openingHoursSpecification.1'))->toBe(['@type' => 'OpeningHoursSpecification', 'dayOfWeek' => 'Monday', 'opens' => '13:00']);
+});
+
+it('leaves the validity dates out when they are not dates', function (): void {
+    $schema = location_schema_for(location_with_hours([
+        'location_modified_hours' => true,
+        'location_modified_hours_start_date' => 'someday',
+        'location_modified_hours_end' => true,
+        'location_modified_hours_end_date' => 'never',
+        'location_modified_hours_group' => [
+            ['location_modified_hours_24_7' => true],
+            ['location_modified_hours_times' => [['location_modified_hours_day' => 'Sunday', 'location_modified_hours_open' => '1:00 pm', 'location_modified_hours_close' => '2:00 pm']]],
+        ],
+    ]));
+
+    expect(schema_at($schema, 'openingHoursSpecification.0'))->not->toHaveKeys(['validFrom', 'validThrough'])
+        ->and(schema_at($schema, 'openingHoursSpecification.1'))->not->toHaveKeys(['validFrom', 'validThrough']);
 });

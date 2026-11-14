@@ -12,7 +12,7 @@ use function Brain\Monkey\Functions\when;
 /**
  * Run the breadcrumb for a post and return the decoded list items.
  *
- * @param  array<string, mixed>  $fields  ACF values by field name.
+ * @param  array<array-key, mixed>  $fields  ACF values by field name.
  * @return non-empty-list<array<array-key, mixed>>
  */
 function breadcrumb_for(string $postType, array $fields = [], string $title = 'Page title'): array
@@ -91,7 +91,7 @@ it('adds no parent location unless the flag, the id and the post are all present
 ]);
 
 it('names a provider from the display name and degrees', function (): void {
-    when('get_term')->alias(static fn ($id) => (object) ['name' => ['1' => 'MD', '2' => 'PhD'][(string) $id]]);
+    when('get_term')->alias(static fn (int $id) => (object) ['name' => [1 => 'MD', 2 => 'PhD'][$id]]);
     when('is_wp_error')->justReturn(false);
 
     $items = breadcrumb_for('provider', [

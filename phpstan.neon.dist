@@ -59,7 +59,7 @@ parameters:
     # from 0 upward (see the code-quality skill), then raise it by one per
     # change as findings are fixed, until `max`. Lowering it is a deliberate,
     # argued change, not a quiet edit to get a red run green.
-    level: 1
+    level: 2
 
     excludePaths:
         analyse:
@@ -189,8 +189,8 @@ parameters:
         #     reportUnmatched: false
         # Pest routes its public API through classes it tags @internal;
         # calling them from a test is Pest's intended use.
-        # -
-        #     identifier: method.internalClass
-        #     message: '#of internal class Pest\\#'
-        #     path: tests
-        #     reportUnmatched: false
+        -
+            identifier: method.internalClass
+            message: '#of internal class Pest\\#'
+            path: tests
+            reportUnmatched: false

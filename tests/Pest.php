@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use PHPUnit\Framework\TestCase;
+use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 
 use function Brain\Monkey\Functions\when;
 use function Brain\Monkey\setUp;
@@ -157,19 +157,15 @@ function schema_rows(array $schema, string $path): array
  * The assertion count: Brain Monkey's expectations are Mockery expectations,
  * which PHPUnit does not count. Without adding them, a test whose only check is
  * `Functions\expect(...)->once()` reports as risky, and failOnRisky fails it.
+ * Mockery's own PHPUnit integration trait adds them to the count and fails the
+ * test on an unmet expectation.
  */
-uses()
+uses(MockeryPHPUnitIntegration::class)
     ->beforeEach(function (): void {
         setUp();
         load_plugin();
     })
     ->afterEach(function (): void {
-        if (! $this instanceof TestCase) {
-            throw new LogicException('Pest runs this hook on a test case.');
-        }
-
-        $this->addToAssertionCount(Mockery::getContainer()->mockery_getExpectationCount());
-
         tearDown();
     })
     ->in('Unit');

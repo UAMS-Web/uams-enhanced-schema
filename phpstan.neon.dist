@@ -179,14 +179,6 @@ parameters:
             message: '#^Undefined variable: \$this$#'
             path: tests/Pest.php
             reportUnmatched: false
-        # Crediting Mockery's expectation count to the running test is
-        # PHPUnit's @internal addToAssertionCount(), reached from the
-        # afterEach hook in tests/Pest.php. Pinned to that file and method; an
-        # unmatched entry fails the run.
-        -
-            identifier: method.internal
-            message: '#TestCase::addToAssertionCount\(\)#'
-            path: tests/Pest.php
         # `$this` inside an `it()` closure analyzes as PHPUnit's TestCase
         # whatever `uses(...)->in('Integration')` binds, so a WP_UnitTestCase
         # method such as `go_to()` reads as undefined. Scoped to that suite.

@@ -112,12 +112,10 @@ function uams_physician_schema(): void
     // Degrees — taxonomy term IDs in 'degree' taxonomy
     $degree_ids = get_field('physician_degree', $post_id);
     $degrees = [];
-    if ($degree_ids && is_array($degree_ids)) {
-        foreach ($degree_ids as $term_id) {
-            $term = get_term($term_id, 'degree');
-            if ($term && ! is_wp_error($term)) {
-                $degrees[] = $term->name;
-            }
+    foreach (uams_id_list($degree_ids) as $term_id) {
+        $term = get_term($term_id, 'degree');
+        if ($term && ! is_wp_error($term)) {
+            $degrees[] = $term->name;
         }
     }
 
@@ -160,12 +158,10 @@ function uams_physician_schema(): void
     // ── Languages — taxonomy term IDs in 'language' taxonomy ──
     $lang_ids = get_field('physician_languages', $post_id);
     $languages = [];
-    if ($lang_ids && is_array($lang_ids)) {
-        foreach ($lang_ids as $term_id) {
-            $term = get_term($term_id, 'language');
-            if ($term && ! is_wp_error($term)) {
-                $languages[] = $term->name;
-            }
+    foreach (uams_id_list($lang_ids) as $term_id) {
+        $term = get_term($term_id, 'language');
+        if ($term && ! is_wp_error($term)) {
+            $languages[] = $term->name;
         }
     }
 
@@ -178,15 +174,13 @@ function uams_physician_schema(): void
     // ── Conditions (CPT post IDs) ──
     $condition_ids = get_field('physician_conditions_cpt', $post_id);
     $conditions = [];
-    if ($condition_ids && is_array($condition_ids)) {
-        foreach ($condition_ids as $cid) {
-            if (get_post_status($cid) === 'publish') {
-                $conditions[] = [
-                    '@type' => 'MedicalCondition',
-                    'name' => get_the_title($cid),
-                    'url' => get_permalink($cid),
-                ];
-            }
+    foreach (uams_id_list($condition_ids) as $cid) {
+        if (get_post_status($cid) === 'publish') {
+            $conditions[] = [
+                '@type' => 'MedicalCondition',
+                'name' => get_the_title($cid),
+                'url' => get_permalink($cid),
+            ];
         }
     }
 
@@ -195,19 +189,15 @@ function uams_physician_schema(): void
 
     // ── Medical specialties — combine conditions + treatments for medicalSpecialty ──
     $specialties = [];
-    if ($condition_ids && is_array($condition_ids)) {
-        foreach ($condition_ids as $cid) {
-            if (get_post_status($cid) === 'publish') {
-                $specialties[] = get_the_title($cid);
-            }
+    foreach (uams_id_list($condition_ids) as $cid) {
+        if (get_post_status($cid) === 'publish') {
+            $specialties[] = get_the_title($cid);
         }
     }
 
-    if ($treatment_ids && is_array($treatment_ids)) {
-        foreach ($treatment_ids as $tid) {
-            if (get_post_status($tid) === 'publish') {
-                $specialties[] = get_the_title($tid);
-            }
+    foreach (uams_id_list($treatment_ids) as $tid) {
+        if (get_post_status($tid) === 'publish') {
+            $specialties[] = get_the_title($tid);
         }
     }
 
@@ -261,78 +251,76 @@ function uams_physician_schema(): void
     $location_ids = get_field('physician_locations', $post_id);
     $addresses = [];
     $practice_locations = [];
-    if ($location_ids && is_array($location_ids)) {
-        foreach ($location_ids as $loc_id) {
-            if (get_post_status($loc_id) !== 'publish') {
-                continue;
-            }
-
-            // Location fields use get_field with the location post ID
-            // Check for parent location (child locations inherit address from parent)
-            $has_parent = get_field('location_parent', $loc_id);
-            $parent_id = get_field('location_parent_id', $loc_id);
-            $addr_post_id = $loc_id;
-            if ($has_parent && $parent_id) {
-                $addr_post_id = $parent_id;
-            }
-
-            $addr1 = get_field('location_address_1', $addr_post_id) ?: '';
-            $city = get_field('location_city', $addr_post_id) ?: '';
-            $state = get_field('location_state', $addr_post_id) ?: '';
-            $zip = get_field('location_zip', $addr_post_id) ?: '';
-
-            // Building and floor (taxonomy + select field)
-            $building_id = get_field('location_building', $addr_post_id);
-            $building_name = '';
-            if ($building_id) {
-                $bterm = get_term($building_id, 'building');
-                if ($bterm && ! is_wp_error($bterm) && $bterm->slug !== '_none') {
-                    $building_name = $bterm->name;
-                }
-            }
-
-            $suite = get_field('location_suite', $addr_post_id) ?: '';
-            $addr2_parts = array_filter([$building_name, $suite]);
-            $addr2 = implode(' ', $addr2_parts);
-            if (! $addr2) {
-                $addr2 = get_field('location_address_2', $addr_post_id) ?: '';
-            }
-
-            $street = trim("$addr1 $addr2");
-
-            $address = [
-                '@type' => 'PostalAddress',
-                'streetAddress' => $street,
-                'addressLocality' => $city,
-                'addressRegion' => $state,
-                'postalCode' => $zip,
-            ];
-
-            $addresses[] = $address;
-
-            // Build MedicalClinic for each location
-            $loc_entry = [
-                '@type' => 'MedicalClinic',
-                'name' => get_the_title($loc_id),
-                'url' => get_permalink($loc_id),
-                'address' => $address,
-            ];
-
-            // Phone — included via location-card template which sets $location_phone
-            // We access it directly from location fields
-            $phone = get_field('location_phone', $loc_id);
-            if ($phone) {
-                $loc_entry['telephone'] = uams_format_phone_schema($phone);
-            }
-
-            $practice_locations[] = $loc_entry;
+    foreach (uams_id_list($location_ids) as $loc_id) {
+        if (get_post_status($loc_id) !== 'publish') {
+            continue;
         }
+
+        // Location fields use get_field with the location post ID
+        // Check for parent location (child locations inherit address from parent)
+        $has_parent = get_field('location_parent', $loc_id);
+        $parent_id = get_field('location_parent_id', $loc_id);
+        $addr_post_id = $loc_id;
+        if ($has_parent && $parent_id) {
+            $addr_post_id = $parent_id;
+        }
+
+        $addr1 = get_field('location_address_1', $addr_post_id) ?: '';
+        $city = get_field('location_city', $addr_post_id) ?: '';
+        $state = get_field('location_state', $addr_post_id) ?: '';
+        $zip = get_field('location_zip', $addr_post_id) ?: '';
+
+        // Building and floor (taxonomy + select field)
+        $building_id = get_field('location_building', $addr_post_id);
+        $building_name = '';
+        if ($building_id) {
+            $bterm = get_term($building_id, 'building');
+            if ($bterm && ! is_wp_error($bterm) && $bterm->slug !== '_none') {
+                $building_name = $bterm->name;
+            }
+        }
+
+        $suite = get_field('location_suite', $addr_post_id) ?: '';
+        $addr2_parts = array_filter([$building_name, $suite]);
+        $addr2 = implode(' ', $addr2_parts);
+        if (! $addr2) {
+            $addr2 = get_field('location_address_2', $addr_post_id) ?: '';
+        }
+
+        $street = trim("$addr1 $addr2");
+
+        $address = [
+            '@type' => 'PostalAddress',
+            'streetAddress' => $street,
+            'addressLocality' => $city,
+            'addressRegion' => $state,
+            'postalCode' => $zip,
+        ];
+
+        $addresses[] = $address;
+
+        // Build MedicalClinic for each location
+        $loc_entry = [
+            '@type' => 'MedicalClinic',
+            'name' => get_the_title($loc_id),
+            'url' => get_permalink($loc_id),
+            'address' => $address,
+        ];
+
+        // Phone — included via location-card template which sets $location_phone
+        // We access it directly from location fields
+        $phone = get_field('location_phone', $loc_id);
+        if ($phone) {
+            $loc_entry['telephone'] = uams_format_phone_schema($phone);
+        }
+
+        $practice_locations[] = $loc_entry;
     }
 
     // ── Ratings — Press Ganey API ──
     $aggregate_rating = null;
     $pg_rating_data = get_post_meta($post_id, '_syndicated_api_data', true);
-    if ($npi && ! empty($pg_rating_data)) {
+    if ($npi && is_object($pg_rating_data)) {
         if (isset($pg_rating_data->status->code) && $pg_rating_data->status->code == '200') {
             // A default of -1 or 1 stays below the 30-rating floor like 0.
             // @pest-mutate-ignore:DecrementInteger,IncrementInteger
@@ -362,12 +350,10 @@ function uams_physician_schema(): void
     // ── Boards / certifications — taxonomy term IDs ──
     $board_ids = get_field('physician_boards', $post_id);
     $certifications = [];
-    if ($board_ids && is_array($board_ids)) {
-        foreach ($board_ids as $term_id) {
-            $term = get_term($term_id, 'boards');
-            if ($term && ! is_wp_error($term)) {
-                $certifications[] = $term->name;
-            }
+    foreach (uams_id_list($board_ids) as $term_id) {
+        $term = get_term($term_id, 'boards');
+        if ($term && ! is_wp_error($term)) {
+            $certifications[] = $term->name;
         }
     }
 
@@ -558,20 +544,16 @@ function uams_location_schema(): void
                 $opening_hours = ['Mo-Su 00:00-23:59'];
             } else {
                 $hours = $hours_group['location_hours'] ?? [];
-                if (is_array($hours)) {
-                    foreach ($hours as $hour) {
-                        if (! empty($hour['closed'])) {
-                            continue;
-                        }
+                foreach (uams_rows($hours) as $hour) {
+                    if (! empty($hour['closed'])) {
+                        continue;
+                    }
 
-                        // An empty or unknown day both fail uams_day_abbreviation(), so the default text is never read.
-                        // @pest-mutate-ignore:EmptyStringToNotEmpty
-                        $day_abbr = uams_day_abbreviation($hour['day'] ?? '');
-                        if ($day_abbr && ! empty($hour['open']) && ! empty($hour['close'])) {
-                            $open = date('H:i', strtotime($hour['open']));
-                            $close = date('H:i', strtotime($hour['close']));
-                            $opening_hours[] = "$day_abbr $open-$close";
-                        }
+                    $day_abbr = uams_day_abbreviation(uams_string($hour['day'] ?? null));
+                    $open = uams_clock_time(uams_string($hour['open'] ?? null));
+                    $close = uams_clock_time(uams_string($hour['close'] ?? null));
+                    if ($day_abbr && $open !== null && $close !== null) {
+                        $opening_hours[] = "$day_abbr $open-$close";
                     }
                 }
             }
@@ -583,18 +565,54 @@ function uams_location_schema(): void
                 $mod_end_date = $hours_group['location_modified_hours_end_date'] ?? '';
                 $mod_groups = $hours_group['location_modified_hours_group'] ?? [];
 
-                if (is_array($mod_groups)) {
-                    foreach ($mod_groups as $mod_group) {
-                        $mod_247 = $mod_group['location_modified_hours_24_7'] ?? false;
-                        $mod_times = $mod_group['location_modified_hours_times'] ?? [];
+                foreach (uams_rows($mod_groups) as $mod_group) {
+                    $mod_247 = $mod_group['location_modified_hours_24_7'] ?? false;
+                    $mod_times = $mod_group['location_modified_hours_times'] ?? [];
 
-                        if ($mod_247) {
+                    if ($mod_247) {
+                        $spec = [
+                            '@type' => 'OpeningHoursSpecification',
+                            'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                            'opens' => '00:00',
+                            'closes' => '23:59',
+                        ];
+                        if ($mod_start) {
+                            $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
+                        }
+
+                        if ($mod_end_known && $mod_end_date) {
+                            $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
+                        }
+
+                        $opening_hours_spec[] = $spec;
+                    } else {
+                        foreach (uams_rows($mod_times) as $mt) {
+                            $closed = $mt['location_modified_hours_closed'] ?? false;
+                            $day_val = $mt['location_modified_hours_day'] ?? '';
                             $spec = [
                                 '@type' => 'OpeningHoursSpecification',
-                                'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-                                'opens' => '00:00',
-                                'closes' => '23:59',
                             ];
+                            if ($day_val === 'Mon - Fri') {
+                                $spec['dayOfWeek'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+                            } else {
+                                $spec['dayOfWeek'] = $day_val;
+                            }
+
+                            if ($closed) {
+                                $spec['opens'] = '00:00';
+                                $spec['closes'] = '00:00';
+                            } else {
+                                $opens = uams_clock_time(uams_string($mt['location_modified_hours_open'] ?? null));
+                                if ($opens !== null) {
+                                    $spec['opens'] = $opens;
+                                }
+
+                                $closes = uams_clock_time(uams_string($mt['location_modified_hours_close'] ?? null));
+                                if ($closes !== null) {
+                                    $spec['closes'] = $closes;
+                                }
+                            }
+
                             if ($mod_start) {
                                 $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
                             }
@@ -604,41 +622,6 @@ function uams_location_schema(): void
                             }
 
                             $opening_hours_spec[] = $spec;
-                        } elseif (is_array($mod_times)) {
-                            foreach ($mod_times as $mt) {
-                                $closed = $mt['location_modified_hours_closed'] ?? false;
-                                $day_val = $mt['location_modified_hours_day'] ?? '';
-                                $spec = [
-                                    '@type' => 'OpeningHoursSpecification',
-                                ];
-                                if ($day_val === 'Mon - Fri') {
-                                    $spec['dayOfWeek'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-                                } else {
-                                    $spec['dayOfWeek'] = $day_val;
-                                }
-
-                                if ($closed) {
-                                    $spec['opens'] = '00:00';
-                                    $spec['closes'] = '00:00';
-                                } else {
-                                    // strtotime() is false for both '' and any non-time string, so the default text is never read.
-                                    // @pest-mutate-ignore:EmptyStringToNotEmpty
-                                    $spec['opens'] = date('H:i', strtotime($mt['location_modified_hours_open'] ?? ''));
-                                    // strtotime() is false for both '' and any non-time string, so the default text is never read.
-                                    // @pest-mutate-ignore:EmptyStringToNotEmpty
-                                    $spec['closes'] = date('H:i', strtotime($mt['location_modified_hours_close'] ?? ''));
-                                }
-
-                                if ($mod_start) {
-                                    $spec['validFrom'] = date('Y-m-d', strtotime($mod_start));
-                                }
-
-                                if ($mod_end_known && $mod_end_date) {
-                                    $spec['validThrough'] = date('Y-m-d', strtotime($mod_end_date));
-                                }
-
-                                $opening_hours_spec[] = $spec;
-                            }
                         }
                     }
                 }
@@ -688,34 +671,30 @@ function uams_location_schema(): void
     // ── Providers at this location ──
     $physicians = get_field('physician_locations', $post_id);
     $available_services = [];
-    if ($physicians && is_array($physicians)) {
-        foreach (array_slice($physicians, 0, 50) as $doc_id) {
-            if (get_post_status($doc_id) !== 'publish') {
-                continue;
-            }
-
-            $doc_degrees = [];
-            $doc_degree_ids = get_field('physician_degree', $doc_id);
-            if ($doc_degree_ids && is_array($doc_degree_ids)) {
-                foreach ($doc_degree_ids as $did) {
-                    $dt = get_term($did, 'degree');
-                    if ($dt && ! is_wp_error($dt)) {
-                        $doc_degrees[] = $dt->name;
-                    }
-                }
-            }
-
-            $doc_name = get_the_title($doc_id);
-            if ($doc_degrees !== []) {
-                $doc_name .= ', '.implode(', ', $doc_degrees);
-            }
-
-            $available_services[] = [
-                '@type' => 'Physician',
-                'name' => $doc_name,
-                'url' => get_permalink($doc_id),
-            ];
+    foreach (array_slice(uams_id_list($physicians), 0, 50) as $doc_id) {
+        if (get_post_status($doc_id) !== 'publish') {
+            continue;
         }
+
+        $doc_degrees = [];
+        $doc_degree_ids = get_field('physician_degree', $doc_id);
+        foreach (uams_id_list($doc_degree_ids) as $did) {
+            $dt = get_term($did, 'degree');
+            if ($dt && ! is_wp_error($dt)) {
+                $doc_degrees[] = $dt->name;
+            }
+        }
+
+        $doc_name = get_the_title($doc_id);
+        if ($doc_degrees !== []) {
+            $doc_name .= ', '.implode(', ', $doc_degrees);
+        }
+
+        $available_services[] = [
+            '@type' => 'Physician',
+            'name' => $doc_name,
+            'url' => get_permalink($doc_id),
+        ];
     }
 
     // ── Closing status ──
@@ -830,26 +809,23 @@ function uams_condition_schema(): void
     // Alternate names (keywords repeater)
     $alternates = get_field('condition_alternate', $post_id);
     $alt_names = [];
-    if ($alternates && is_array($alternates)) {
-        foreach ($alternates as $alt) {
-            if (! empty($alt['text'])) {
-                $alt_names[] = str_replace(',', '', $alt['text']);
-            }
+    foreach (uams_rows($alternates) as $alt) {
+        $text = uams_string($alt['text'] ?? null);
+        if ($text !== '') {
+            $alt_names[] = str_replace(',', '', $text);
         }
     }
 
     // Related treatments (post IDs)
     $treatment_ids = get_field('condition_treatments', $post_id);
     $possible_treatments = [];
-    if ($treatment_ids && is_array($treatment_ids)) {
-        foreach ($treatment_ids as $tid) {
-            if (get_post_status($tid) === 'publish') {
-                $possible_treatments[] = [
-                    '@type' => 'MedicalTherapy',
-                    'name' => get_the_title($tid),
-                    'url' => get_permalink($tid),
-                ];
-            }
+    foreach (uams_id_list($treatment_ids) as $tid) {
+        if (get_post_status($tid) === 'publish') {
+            $possible_treatments[] = [
+                '@type' => 'MedicalTherapy',
+                'name' => get_the_title($tid),
+                'url' => get_permalink($tid),
+            ];
         }
     }
 
@@ -924,44 +900,39 @@ function uams_treatment_schema(): void
     // Alternate names
     $alternates = get_field('treatment_procedure_alternate', $post_id);
     $alt_names = [];
-    if ($alternates && is_array($alternates)) {
-        foreach ($alternates as $alt) {
-            if (! empty($alt['text'])) {
-                $alt_names[] = str_replace(',', '', $alt['text']);
-            }
+    foreach (uams_rows($alternates) as $alt) {
+        $text = uams_string($alt['text'] ?? null);
+        if ($text !== '') {
+            $alt_names[] = str_replace(',', '', $text);
         }
     }
 
     // Related conditions (post IDs)
     $condition_ids = get_field('treatment_conditions', $post_id);
     $conditions = [];
-    if ($condition_ids && is_array($condition_ids)) {
-        foreach ($condition_ids as $cid) {
-            if (get_post_status($cid) === 'publish') {
-                $conditions[] = [
-                    '@type' => 'MedicalCondition',
-                    'name' => get_the_title($cid),
-                    'url' => get_permalink($cid),
-                ];
-            }
+    foreach (uams_id_list($condition_ids) as $cid) {
+        if (get_post_status($cid) === 'publish') {
+            $conditions[] = [
+                '@type' => 'MedicalCondition',
+                'name' => get_the_title($cid),
+                'url' => get_permalink($cid),
+            ];
         }
     }
 
     // Related locations
     $location_ids = get_field('treatment_procedure_locations', $post_id);
     $available_at = [];
-    if ($location_ids && is_array($location_ids)) {
-        foreach (array_slice($location_ids, 0, 20) as $loc_id) {
-            if (get_post_status($loc_id) !== 'publish') {
-                continue;
-            }
-
-            $available_at[] = [
-                '@type' => 'MedicalClinic',
-                'name' => get_the_title($loc_id),
-                'url' => get_permalink($loc_id),
-            ];
+    foreach (array_slice(uams_id_list($location_ids), 0, 20) as $loc_id) {
+        if (get_post_status($loc_id) !== 'publish') {
+            continue;
         }
+
+        $available_at[] = [
+            '@type' => 'MedicalClinic',
+            'name' => get_the_title($loc_id),
+            'url' => get_permalink($loc_id),
+        ];
     }
 
     // MedlinePlus code
@@ -1159,12 +1130,10 @@ function uams_breadcrumb_schema(): void
 
         $degree_ids = get_field('physician_degree', $post_id);
         $degrees = [];
-        if ($degree_ids && is_array($degree_ids)) {
-            foreach ($degree_ids as $term_id) {
-                $term = get_term($term_id, 'degree');
-                if ($term && ! is_wp_error($term)) {
-                    $degrees[] = $term->name;
-                }
+        foreach (uams_id_list($degree_ids) as $term_id) {
+            $term = get_term($term_id, 'degree');
+            if ($term && ! is_wp_error($term)) {
+                $degrees[] = $term->name;
             }
         }
 
@@ -1243,6 +1212,66 @@ function uams_output_jsonld($data): void
     // script element or being read as an entity; slashes stay unescaped for readable URLs.
     echo wp_json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP);
     echo "\n</script>\n";
+}
+
+/**
+ * Read the post or term ids an ACF relationship or taxonomy field holds.
+ *
+ * Integers and digit-only strings count as ids; anything else, and a field that is not a list, yields nothing.
+ *
+ * @param  mixed  $value  The raw field value.
+ * @return list<int>
+ */
+function uams_id_list($value): array
+{
+    $ids = [];
+    foreach (is_array($value) ? $value : [] as $id) {
+        if (is_int($id)) {
+            $ids[] = $id;
+        } elseif (is_string($id) && ctype_digit($id)) {
+            $ids[] = (int) $id;
+        }
+    }
+
+    return $ids;
+}
+
+/**
+ * Read the rows of an ACF repeater field, skipping anything that is not a row.
+ *
+ * @param  mixed  $value  The raw field value.
+ * @return list<array<array-key, mixed>>
+ */
+function uams_rows($value): array
+{
+    $rows = [];
+    foreach (is_array($value) ? $value : [] as $row) {
+        if (is_array($row)) {
+            $rows[] = $row;
+        }
+    }
+
+    return $rows;
+}
+
+/**
+ * Read a field value as text, or an empty string when it is not a string.
+ *
+ * @param  mixed  $value  The raw field value.
+ */
+function uams_string($value): string
+{
+    return is_string($value) ? $value : '';
+}
+
+/**
+ * Format a time of day such as "9:30 am" as 24-hour HH:MM, or return null when the text is not a time.
+ */
+function uams_clock_time(string $text): ?string
+{
+    $time = strtotime($text);
+
+    return $time === false ? null : date('H:i', $time);
 }
 
 /**

@@ -57,15 +57,15 @@ function faq_questions(?int $postId = 7): ?array
         return null;
     }
 
-    $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
+    $schema = decode_jsonld($out);
 
-    expect($schema['@context'])->toBe('https://schema.org')
-        ->and($schema['@type'])->toBe('FAQPage');
+    expect(schema_at($schema, '@context'))->toBe('https://schema.org')
+        ->and(schema_at($schema, '@type'))->toBe('FAQPage');
 
-    return array_values(array_map(
-        static fn (array $q): array => ['name' => (string) $q['name'], 'text' => (string) $q['acceptedAnswer']['text']],
-        $schema['mainEntity']
-    ));
+    return array_map(
+        static fn (array $q): array => ['name' => schema_text($q, 'name'), 'text' => schema_text($q, 'acceptedAnswer.text')],
+        schema_rows($schema, 'mainEntity')
+    );
 }
 
 it('reads the faq repeater', function (): void {
@@ -148,9 +148,9 @@ it('types each question and its answer', function (): void {
     ob_start();
     uams_output_faq_schema([['question' => 'Q', 'answer' => 'A']]);
     $out = (string) ob_get_clean();
-    $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
+    $schema = decode_jsonld($out);
 
-    expect($schema['mainEntity'])->toBe([[
+    expect(schema_at($schema, 'mainEntity'))->toBe([[
         '@type' => 'Question',
         'name' => 'Q',
         'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'A'],

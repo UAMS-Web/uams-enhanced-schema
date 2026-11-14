@@ -26,8 +26,8 @@ function content_writer(string $name): callable
  * Options: `fields` (ACF values by post id then field name), `terms` (degree terms by id;
  * `error` stands for a WP_Error), `status` and `titles` (by post id), `excerpt`, `content`.
  *
- * @param  array<string, mixed>  $o
- * @return array<string, mixed>
+ * @param  array{fields?: array<int, array<string, mixed>>, terms?: array<int, mixed>, status?: array<int, string>, titles?: array<int, string>, excerpt?: string, content?: string}  $o
+ * @return array<array-key, mixed>
  */
 function content_schema_for(string $writer, array $o = []): array
 {
@@ -39,14 +39,14 @@ function content_schema_for(string $writer, array $o = []): array
     when('wp_json_encode')->alias('json_encode');
     when('wp_strip_all_tags')->alias('strip_tags');
     when('get_the_ID')->justReturn(10);
-    when('get_the_title')->alias(static fn ($id = null): string => $id === null ? 'The page' : ($titles[$id] ?? "Title $id"));
-    when('get_permalink')->alias(static fn ($id): string => "https://uamshealth.com/p/$id/");
+    when('get_the_title')->alias(static fn (?int $id = null): string => $id === null ? 'The page' : ($titles[$id] ?? "Title $id"));
+    when('get_permalink')->alias(static fn (int $id): string => "https://uamshealth.com/p/$id/");
     when('get_the_excerpt')->justReturn($o['excerpt'] ?? '');
     when('get_the_content')->justReturn($o['content'] ?? '');
-    when('get_post_status')->alias(static fn ($id) => $status[$id] ?? false);
+    when('get_post_status')->alias(static fn (int $id) => $status[$id] ?? false);
     when('is_wp_error')->alias(static fn ($thing): bool => $thing === 'error');
-    when('get_term')->alias(static fn ($id, string $taxonomy) => $terms[$id] ?? false);
-    when('get_field')->alias(static function (string $name, $id = null) use ($fields) {
+    when('get_term')->alias(static fn (int $id, string $taxonomy) => $terms[$id] ?? false);
+    when('get_field')->alias(static function (string $name, int $id) use ($fields) {
         $set = $fields[$id] ?? [];
 
         return array_key_exists($name, $set) ? $set[$name] : false;
@@ -57,9 +57,9 @@ function content_schema_for(string $writer, array $o = []): array
     content_writer($writer)();
     $out = (string) ob_get_clean();
 
-    $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
+    $schema = decode_jsonld($out);
 
-    expect($schema['@context'])->toBe('https://schema.org');
+    expect(schema_at($schema, '@context'))->toBe('https://schema.org');
 
     return $schema;
 }
@@ -92,19 +92,19 @@ it('writes the fixed properties for a page with nothing filled in', function (st
 it('describes the page with the excerpt, stripped of tags', function (string $writer): void {
     $schema = content_schema_for($writer, ['excerpt' => '<p>An <b>excerpt</b></p>', 'content' => 'Body']);
 
-    expect($schema['description'])->toBe('An excerpt');
+    expect(schema_at($schema, 'description'))->toBe('An excerpt');
 })->with(content_writers());
 
 it('falls back to the content, cut to 300 characters', function (string $writer): void {
     $schema = content_schema_for($writer, ['content' => '<p>'.str_repeat('a', 400).'</p>']);
 
-    expect($schema['description'])->toBe(str_repeat('a', 297).'...');
+    expect(schema_at($schema, 'description'))->toBe(str_repeat('a', 297).'...');
 })->with(content_writers());
 
 it('keeps short content whole', function (string $writer): void {
     $schema = content_schema_for($writer, ['content' => '<i>Brief</i>']);
 
-    expect($schema['description'])->toBe('Brief');
+    expect(schema_at($schema, 'description'))->toBe('Brief');
 })->with(content_writers());
 
 it('lists alternate names without commas and skips empty ones', function (string $writer, string $type, string $field): void {
@@ -115,7 +115,7 @@ it('lists alternate names without commas and skips empty ones', function (string
         ['text' => 'MI'],
     ]]]]);
 
-    expect($schema['alternateName'])->toBe(['Heart attack', 'MI']);
+    expect(schema_at($schema, 'alternateName'))->toBe(['Heart attack', 'MI']);
 })->with(content_writers());
 
 it('writes no alternate names for an empty list or a field that is not a list', function (string $writer, string $type, string $field, mixed $value): void {
@@ -135,8 +135,8 @@ it('writes no alternate names for an empty list or a field that is not a list', 
 it('writes a MedlinePlus code and link for a topic or an encyclopedia article', function (string $writer, string $kind, string $path): void {
     $schema = content_schema_for($writer, ['fields' => [10 => ['medline_code_type' => $kind, 'medline_code_id' => 'a b']]]);
 
-    expect($schema['code'])->toBe(['@type' => 'MedicalCode', 'codingSystem' => 'MedlinePlus', 'codeValue' => 'a b'])
-        ->and($schema['sameAs'])->toBe("https://medlineplus.gov/{$path}a%20b.htm");
+    expect(schema_at($schema, 'code'))->toBe(['@type' => 'MedicalCode', 'codingSystem' => 'MedlinePlus', 'codeValue' => 'a b'])
+        ->and(schema_at($schema, 'sameAs'))->toBe("https://medlineplus.gov/{$path}a%20b.htm");
 })->with(function (): array {
     $cases = [];
     foreach (content_writers() as $name => $writer) {
@@ -184,7 +184,7 @@ it('lists published treatments as possible treatments of a condition', function 
         'titles' => [31 => 'Stent', 33 => 'Bypass'],
     ]);
 
-    expect($schema['possibleTreatment'])->toBe([
+    expect(schema_at($schema, 'possibleTreatment'))->toBe([
         ['@type' => 'MedicalTherapy', 'name' => 'Stent', 'url' => 'https://uamshealth.com/p/31/'],
         ['@type' => 'MedicalTherapy', 'name' => 'Bypass', 'url' => 'https://uamshealth.com/p/33/'],
     ]);
@@ -219,7 +219,7 @@ it('lists published conditions as indications of a treatment', function (): void
         'titles' => [21 => 'Asthma', 23 => 'Angina'],
     ]);
 
-    expect($schema['indication'])->toBe([
+    expect(schema_at($schema, 'indication'))->toBe([
         ['@type' => 'MedicalCondition', 'name' => 'Asthma', 'url' => 'https://uamshealth.com/p/21/'],
         ['@type' => 'MedicalCondition', 'name' => 'Angina', 'url' => 'https://uamshealth.com/p/23/'],
     ]);
@@ -242,9 +242,9 @@ it('lists published locations of a treatment, at most the first 20', function ()
         'status' => array_replace(array_fill_keys($ids, 'publish'), [202 => 'draft']),
     ]);
 
-    expect($schema['availableService'])->toHaveCount(19)
-        ->and($schema['availableService'][0])->toBe(['@type' => 'MedicalClinic', 'name' => 'Title 201', 'url' => 'https://uamshealth.com/p/201/'])
-        ->and($schema['availableService'][18]['url'])->toBe('https://uamshealth.com/p/220/');
+    expect(schema_at($schema, 'availableService'))->toHaveCount(19)
+        ->and(schema_at($schema, 'availableService.0'))->toBe(['@type' => 'MedicalClinic', 'name' => 'Title 201', 'url' => 'https://uamshealth.com/p/201/'])
+        ->and(schema_at($schema, 'availableService.18.url'))->toBe('https://uamshealth.com/p/220/');
 });
 
 it('writes no locations for a treatment when none is published or the field is not a list', function (mixed $ids): void {

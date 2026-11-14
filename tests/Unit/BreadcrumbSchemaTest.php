@@ -13,7 +13,7 @@ use function Brain\Monkey\Functions\when;
  * Run the breadcrumb for a post and return the decoded list items.
  *
  * @param  array<string, mixed>  $fields  ACF values by field name.
- * @return non-empty-list<array<string, mixed>>
+ * @return non-empty-list<array<array-key, mixed>>
  */
 function breadcrumb_for(string $postType, array $fields = [], string $title = 'Page title'): array
 {
@@ -27,13 +27,14 @@ function breadcrumb_for(string $postType, array $fields = [], string $title = 'P
     uams_breadcrumb_schema();
     $out = (string) ob_get_clean();
 
-    $json = (string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out);
-    $schema = json_decode($json, true);
+    $schema = decode_jsonld($out);
 
-    expect($schema['@context'])->toBe('https://schema.org')
-        ->and($schema['@type'])->toBe('BreadcrumbList');
+    expect(schema_at($schema, '@context'))->toBe('https://schema.org')
+        ->and(schema_at($schema, '@type'))->toBe('BreadcrumbList');
 
-    return $schema['itemListElement'];
+    $items = schema_rows($schema, 'itemListElement');
+
+    return $items === [] ? throw new UnexpectedValueException('The breadcrumb has no items.') : $items;
 }
 
 it('lists the site, the archive and the page for each post type', function (string $type, string $label, string $url): void {

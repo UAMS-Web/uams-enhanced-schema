@@ -25,8 +25,8 @@ if (! class_exists('WP_Query', false)) {
  * (post titles a conditions or treatments query finds, by post type), `status` and
  * `titles` (by post id), `page_title`.
  *
- * @param  array<string, mixed>  $o
- * @return array<string, mixed>
+ * @param  array{fields?: array<int, array<string, mixed>>, terms?: array<string, array<int, mixed>>, parent?: mixed, thumbs?: array<int, int>, attachments?: array<int, string>, queries?: array<string, list<string>>, status?: array<int, string>, titles?: array<int, string>, page_title?: string}  $o
+ * @return array<array-key, mixed>
  */
 function location_schema_for(array $o = []): array
 {
@@ -48,15 +48,15 @@ function location_schema_for(array $o = []): array
     when('get_the_ID')->justReturn(10);
     when('get_post_field')->alias(static fn (string $field, object $post) => $post->$field);
     when('get_post')->justReturn($o['parent'] ?? false);
-    when('get_permalink')->alias(static fn ($id): string => "https://uamshealth.com/p/$id/");
-    when('get_the_title')->alias(static fn ($id = null): string => $id === null ? ($o['page_title'] ?? 'Clinic') : ($titles[$id] ?? "Title $id"));
+    when('get_permalink')->alias(static fn (int $id): string => "https://uamshealth.com/p/$id/");
+    when('get_the_title')->alias(static fn (?int $id = null): string => $id === null ? ($o['page_title'] ?? 'Clinic') : ($titles[$id] ?? "Title $id"));
     when('get_stylesheet_directory_uri')->justReturn('https://uamshealth.com/theme');
     when('is_wp_error')->alias(static fn ($thing): bool => $thing === 'error');
-    when('get_term')->alias(static fn ($id, string $taxonomy) => $terms[$taxonomy][$id] ?? false);
-    when('get_post_status')->alias(static fn ($id) => $status[$id] ?? false);
-    when('get_post_thumbnail_id')->alias(static fn ($id) => $thumbs[$id] ?? 0);
-    when('wp_get_attachment_image_url')->alias(static fn ($id, $size = null) => $size === 'large' ? ($attachments[$id] ?? false) : false);
-    when('get_field')->alias(static function (string $name, $id = null) use ($fields) {
+    when('get_term')->alias(static fn (int $id, string $taxonomy) => $terms[$taxonomy][$id] ?? false);
+    when('get_post_status')->alias(static fn (int $id) => $status[$id] ?? false);
+    when('get_post_thumbnail_id')->alias(static fn (int $id) => $thumbs[$id] ?? 0);
+    when('wp_get_attachment_image_url')->alias(static fn (int $id, ?string $size = null) => $size === 'large' ? ($attachments[$id] ?? false) : false);
+    when('get_field')->alias(static function (string $name, int $id) use ($fields) {
         $set = $fields[$id] ?? [];
 
         return array_key_exists($name, $set) ? $set[$name] : false;
@@ -66,10 +66,10 @@ function location_schema_for(array $o = []): array
     uams_location_schema();
     $out = (string) ob_get_clean();
 
-    $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
+    $schema = decode_jsonld($out);
 
-    expect($schema['@context'])->toBe('https://schema.org')
-        ->and($schema['@type'])->toBe('MedicalClinic');
+    expect(schema_at($schema, '@context'))->toBe('https://schema.org')
+        ->and(schema_at($schema, '@type'))->toBe('MedicalClinic');
 
     return $schema;
 }
@@ -78,7 +78,7 @@ function location_schema_for(array $o = []): array
  * The fields of location 10 with an hours group set.
  *
  * @param  array<string, mixed>  $group
- * @return array<string, mixed>
+ * @return array{fields: array<int, array<string, mixed>>}
  */
 function location_with_hours(array $group): array
 {
@@ -117,7 +117,7 @@ it('writes the address, with the second line from address_2 when there is no bui
         'location_zip' => '72205',
     ]]]);
 
-    expect($schema['address'])->toBe([
+    expect(schema_at($schema, 'address'))->toBe([
         '@type' => 'PostalAddress',
         'streetAddress' => '4301 W Markham Room 4',
         'addressLocality' => 'Little Rock',
@@ -138,7 +138,7 @@ it('prefers the building and suite over address_2', function (): void {
         'terms' => ['building' => [7 => (object) ['name' => 'Jones Building', 'slug' => 'jones']]],
     ]);
 
-    expect($schema['address']['streetAddress'])->toBe('4301 W Markham Jones Building Suite 200');
+    expect(schema_at($schema, 'address.streetAddress'))->toBe('4301 W Markham Jones Building Suite 200');
 });
 
 it('ignores the placeholder building and a building term that does not resolve', function (mixed $term): void {
@@ -147,7 +147,7 @@ it('ignores the placeholder building and a building term that does not resolve',
         'terms' => ['building' => [7 => $term]],
     ]);
 
-    expect($schema['address']['streetAddress'])->toBe('1 Main Suite 9');
+    expect(schema_at($schema, 'address.streetAddress'))->toBe('1 Main Suite 9');
 })->with([
     'placeholder' => [(object) ['name' => 'None', 'slug' => '_none']],
     'error' => ['error'],
@@ -163,9 +163,9 @@ it('reads the address, map and phone source from the parent when a child locatio
         'parent' => (object) ['ID' => 60],
     ]);
 
-    expect($schema['address']['addressLocality'])->toBe('Parent City')
-        ->and($schema['geo']['latitude'])->toBe(1.5)
-        ->and($schema['telephone'])->toBe('+1-501-555-0100');
+    expect(schema_at($schema, 'address.addressLocality'))->toBe('Parent City')
+        ->and(schema_at($schema, 'geo.latitude'))->toBe(1.5)
+        ->and(schema_at($schema, 'telephone'))->toBe('+1-501-555-0100');
 });
 
 it('keeps the own address unless the flag, the id and the parent post are all present', function (array $set, mixed $parent): void {
@@ -174,7 +174,7 @@ it('keeps the own address unless the flag, the id and the parent post are all pr
         'parent' => $parent,
     ]);
 
-    expect($schema['address']['addressLocality'])->toBe('Child City');
+    expect(schema_at($schema, 'address.addressLocality'))->toBe('Child City');
 })->with([
     'flag only' => [['location_parent' => true], (object) ['ID' => 60]],
     'id only' => [['location_parent_id' => 60], (object) ['ID' => 60]],
@@ -185,7 +185,7 @@ it('writes the geo coordinates only when both are present', function (mixed $map
     $schema = location_schema_for(['fields' => [10 => ['location_map' => $map]]]);
 
     if ($written) {
-        expect($schema['geo'])->toBe(['@type' => 'GeoCoordinates', 'latitude' => 34.7, 'longitude' => -92.3]);
+        expect(schema_at($schema, 'geo'))->toBe(['@type' => 'GeoCoordinates', 'latitude' => 34.7, 'longitude' => -92.3]);
 
         return;
     }
@@ -204,7 +204,7 @@ it('writes the featured image of the address post', function (): void {
         'attachments' => [5 => 'https://uamshealth.com/uploads/clinic.jpg'],
     ]);
 
-    expect($schema['image'])->toBe('https://uamshealth.com/uploads/clinic.jpg');
+    expect(schema_at($schema, 'image'))->toBe('https://uamshealth.com/uploads/clinic.jpg');
 });
 
 it('writes no image when the location has no featured image', function (): void {
@@ -219,7 +219,7 @@ it('takes the image from the parent unless the child overrides it with its own f
         'attachments' => [5 => 'child.jpg', 6 => 'parent.jpg'],
     ]);
 
-    expect($schema['image'])->toBe($expected);
+    expect(schema_at($schema, 'image'))->toBe($expected);
 })->with([
     'both override flags' => [['location_image_override_parent' => true, 'location_image_override_parent_featured' => true], 'child.jpg'],
     'no override' => [[], 'parent.jpg'],
@@ -234,7 +234,7 @@ it('does not honor the image override on a location with no parent', function ()
         'attachments' => [5 => 'own.jpg'],
     ]);
 
-    expect($schema['image'])->toBe('own.jpg');
+    expect(schema_at($schema, 'image'))->toBe('own.jpg');
 });
 
 it('describes the location with the short description, stripped of tags', function (): void {
@@ -243,25 +243,25 @@ it('describes the location with the short description, stripped of tags', functi
         'location_about' => 'Long',
     ]]]);
 
-    expect($schema['description'])->toBe('Short text');
+    expect(schema_at($schema, 'description'))->toBe('Short text');
 });
 
 it('falls back to the about text, cut to 250 characters', function (): void {
     $schema = location_schema_for(['fields' => [10 => ['location_about' => '<p>'.str_repeat('a', 300).'</p>']]]);
 
-    expect($schema['description'])->toBe(str_repeat('a', 247).'...');
+    expect(schema_at($schema, 'description'))->toBe(str_repeat('a', 247).'...');
 });
 
 it('keeps a short about text whole', function (): void {
     $schema = location_schema_for(['fields' => [10 => ['location_about' => '<i>Brief</i>']]]);
 
-    expect($schema['description'])->toBe('Brief');
+    expect(schema_at($schema, 'description'))->toBe('Brief');
 });
 
 it('formats the phone number', function (): void {
     $schema = location_schema_for(['fields' => [10 => ['location_phone' => '(501) 555-0100']]]);
 
-    expect($schema['telephone'])->toBe('+1-501-555-0100');
+    expect(schema_at($schema, 'telephone'))->toBe('+1-501-555-0100');
 });
 
 it('writes weekly opening hours, skipping closed days and incomplete rows', function (): void {
@@ -276,7 +276,7 @@ it('writes weekly opening hours, skipping closed days and incomplete rows', func
         ['open' => '8:00 am', 'close' => '5:00 pm'],
     ]]));
 
-    expect($schema['openingHours'])->toBe(['Mo 08:00-17:00', 'Mo-Fr 09:30-16:15', 'Sa 13:00-23:45']);
+    expect(schema_at($schema, 'openingHours'))->toBe(['Mo 08:00-17:00', 'Mo-Fr 09:30-16:15', 'Sa 13:00-23:45']);
 });
 
 it('writes round-the-clock hours for a 24/7 location', function (): void {
@@ -285,7 +285,7 @@ it('writes round-the-clock hours for a 24/7 location', function (): void {
         'location_hours' => [['day' => 'Monday', 'open' => '8:00 am', 'close' => '5:00 pm']],
     ]));
 
-    expect($schema['openingHours'])->toBe(['Mo-Su 00:00-23:59']);
+    expect(schema_at($schema, 'openingHours'))->toBe(['Mo-Su 00:00-23:59']);
 });
 
 it('writes no hours when they vary, even for a 24/7 or modified-hours location', function (): void {
@@ -318,7 +318,7 @@ it('writes a 24/7 modified-hours specification with its dates', function (): voi
         'location_modified_hours_group' => [['location_modified_hours_24_7' => true]],
     ]));
 
-    expect($schema['openingHoursSpecification'])->toBe([[
+    expect(schema_at($schema, 'openingHoursSpecification'))->toBe([[
         '@type' => 'OpeningHoursSpecification',
         'dayOfWeek' => LOCATION_ALL_DAYS,
         'opens' => '00:00',
@@ -334,7 +334,7 @@ it('leaves the end date out unless the end is known and dated', function (array 
         'location_modified_hours_group' => [['location_modified_hours_24_7' => true]],
     ] + $set));
 
-    expect($schema['openingHoursSpecification'][0])->not->toHaveKey('validThrough');
+    expect(schema_at($schema, 'openingHoursSpecification.0'))->not->toHaveKey('validThrough');
 })->with([
     'end not known' => [['location_modified_hours_end_date' => '2030-12-26']],
     'no end date' => [['location_modified_hours_end' => true]],
@@ -346,7 +346,7 @@ it('leaves the start date out when there is none', function (): void {
         'location_modified_hours_group' => [['location_modified_hours_24_7' => true]],
     ]));
 
-    expect($schema['openingHoursSpecification'][0])->not->toHaveKey('validFrom');
+    expect(schema_at($schema, 'openingHoursSpecification.0'))->not->toHaveKey('validFrom');
 });
 
 it('writes a specification per modified-hours row', function (): void {
@@ -363,7 +363,7 @@ it('writes a specification per modified-hours row', function (): void {
         ]],
     ]));
 
-    expect($schema['openingHoursSpecification'])->toBe([
+    expect(schema_at($schema, 'openingHoursSpecification'))->toBe([
         [
             '@type' => 'OpeningHoursSpecification',
             'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
@@ -393,7 +393,7 @@ it('writes the modified hours of an afternoon opening in 24-hour time', function
         ]],
     ]));
 
-    expect($schema['openingHoursSpecification'][0])->toMatchArray(['opens' => '13:00', 'closes' => '23:30']);
+    expect(schema_at($schema, 'openingHoursSpecification.0'))->toMatchArray(['opens' => '13:00', 'closes' => '23:30']);
 });
 
 it('leaves the end date out of a modified-hours row unless the end is known and dated', function (array $set): void {
@@ -404,7 +404,7 @@ it('leaves the end date out of a modified-hours row unless the end is known and 
         ]],
     ] + $set));
 
-    expect($schema['openingHoursSpecification'][0])->not->toHaveKey('validThrough');
+    expect(schema_at($schema, 'openingHoursSpecification.0'))->not->toHaveKey('validThrough');
 })->with([
     'end not known' => [['location_modified_hours_end_date' => '2030-12-26']],
     'no end date' => [['location_modified_hours_end' => true]],
@@ -417,8 +417,8 @@ it('writes modified hours next to the weekly hours', function (): void {
         'location_modified_hours_group' => [['location_modified_hours_24_7' => true]],
     ]));
 
-    expect($schema['openingHours'])->toBe(['Mo 08:00-17:00'])
-        ->and($schema['openingHoursSpecification'])->toHaveCount(1);
+    expect(schema_at($schema, 'openingHours'))->toBe(['Mo 08:00-17:00'])
+        ->and(schema_at($schema, 'openingHoursSpecification'))->toHaveCount(1);
 });
 
 it('writes no specification for modified hours that are off or malformed', function (array $group): void {
@@ -438,7 +438,7 @@ it('lists published condition and treatment titles as specialties', function ():
         'queries' => ['condition' => ['Asthma', 'Angina'], 'treatment' => ['Stent']],
     ]);
 
-    expect($schema['medicalSpecialty'])->toBe(['Asthma', 'Angina', 'Stent'])
+    expect(schema_at($schema, 'medicalSpecialty'))->toBe(['Asthma', 'Angina', 'Stent'])
         ->and(FakeWpQuery::$built)->toBe([
             ['post_type' => 'condition', 'post_status' => 'publish', 'posts_per_page' => -1, 'post__in' => [1, 2], 'orderby' => 'title', 'order' => 'ASC'],
             ['post_type' => 'treatment', 'post_status' => 'publish', 'posts_per_page' => -1, 'post__in' => [3], 'orderby' => 'title', 'order' => 'ASC'],
@@ -451,7 +451,7 @@ it('de-duplicates and re-indexes specialty titles', function (): void {
         'queries' => ['condition' => ['Same', 'Same', 'Other'], 'treatment' => ['Other']],
     ]);
 
-    expect($schema['medicalSpecialty'])->toBe(['Same', 'Other']);
+    expect(schema_at($schema, 'medicalSpecialty'))->toBe(['Same', 'Other']);
 });
 
 it('runs no query for a related-posts field that is not a list', function (): void {
@@ -476,7 +476,7 @@ it('lists published providers with their degrees', function (): void {
         'terms' => ['degree' => [1 => (object) ['name' => 'MD'], 2 => (object) ['name' => 'PhD'], 3 => 'error']],
     ]);
 
-    expect($schema['availableService'])->toBe([
+    expect(schema_at($schema, 'availableService'))->toBe([
         ['@type' => 'Physician', 'name' => 'Ada Lovelace, MD, PhD', 'url' => 'https://uamshealth.com/p/101/'],
         ['@type' => 'Physician', 'name' => 'Grace Hopper', 'url' => 'https://uamshealth.com/p/103/'],
     ]);
@@ -490,7 +490,7 @@ it('ignores a provider degree field that is not a list', function (): void {
         'terms' => ['degree' => [1 => (object) ['name' => 'MD']]],
     ]);
 
-    expect($schema['availableService'][0]['name'])->toBe('Ada Lovelace');
+    expect(schema_at($schema, 'availableService.0.name'))->toBe('Ada Lovelace');
 });
 
 it('lists at most the first 50 providers', function (): void {
@@ -501,8 +501,8 @@ it('lists at most the first 50 providers', function (): void {
         'status' => array_fill_keys($ids, 'publish'),
     ]);
 
-    expect($schema['availableService'])->toHaveCount(50)
-        ->and($schema['availableService'][49]['url'])->toBe('https://uamshealth.com/p/150/');
+    expect(schema_at($schema, 'availableService'))->toHaveCount(50)
+        ->and(schema_at($schema, 'availableService.49.url'))->toBe('https://uamshealth.com/p/150/');
 });
 
 it('writes no providers when none are published or the field is not a list', function (mixed $ids): void {
@@ -518,7 +518,7 @@ it('marks a location temporarily closed once the closing date has passed', funct
         'location_closing_date' => '2020-01-01',
     ]]]);
 
-    expect($schema['specialOpeningHoursSpecification'])->toBe([
+    expect(schema_at($schema, 'specialOpeningHoursSpecification'))->toBe([
         '@type' => 'OpeningHoursSpecification',
         'dayOfWeek' => LOCATION_ALL_DAYS,
         'opens' => '00:00',
@@ -544,7 +544,7 @@ it('keeps reading the weekly hours after a closed row', function (): void {
         ['day' => 'Friday', 'open' => '8:00 am', 'close' => '5:00 pm'],
     ]]));
 
-    expect($schema['openingHours'])->toBe(['Fr 08:00-17:00']);
+    expect(schema_at($schema, 'openingHours'))->toBe(['Fr 08:00-17:00']);
 });
 
 it('writes an empty day for a modified-hours row with no day', function (): void {
@@ -555,7 +555,7 @@ it('writes an empty day for a modified-hours row with no day', function (): void
         ]],
     ]));
 
-    expect($schema['openingHoursSpecification'][0]['dayOfWeek'])->toBe('');
+    expect(schema_at($schema, 'openingHoursSpecification.0.dayOfWeek'))->toBe('');
 });
 
 it('resets the post data after each related-posts query', function (): void {
@@ -566,4 +566,31 @@ it('resets the post data after each related-posts query', function (): void {
 
     expect($afterOne)->toBe(1)
         ->and(FakeWpQuery::$resets)->toBe(2);
+});
+
+it('skips a weekly row whose open or close text is not a time', function (string $open, string $close): void {
+    $schema = location_schema_for(location_with_hours(['location_hours' => [
+        ['day' => 'Monday', 'open' => $open, 'close' => $close],
+        ['day' => 'Tuesday', 'open' => '8:00 am', 'close' => '5:00 pm'],
+    ]]));
+
+    expect(schema_at($schema, 'openingHours'))->toBe(['Tu 08:00-17:00']);
+})->with([
+    'open is not a time' => ['soon', '5:00 pm'],
+    'close is not a time' => ['8:00 am', 'later'],
+]);
+
+it('leaves opens and closes out of a modified-hours entry whose time is not a time', function (): void {
+    $schema = location_schema_for(location_with_hours([
+        'location_modified_hours' => true,
+        'location_modified_hours_group' => [[
+            'location_modified_hours_times' => [
+                ['location_modified_hours_day' => 'Sunday', 'location_modified_hours_open' => 'soon', 'location_modified_hours_close' => '11:30 pm'],
+                ['location_modified_hours_day' => 'Monday', 'location_modified_hours_open' => '1:00 pm', 'location_modified_hours_close' => 'later'],
+            ],
+        ]],
+    ]));
+
+    expect(schema_at($schema, 'openingHoursSpecification.0'))->toBe(['@type' => 'OpeningHoursSpecification', 'dayOfWeek' => 'Sunday', 'closes' => '23:30'])
+        ->and(schema_at($schema, 'openingHoursSpecification.1'))->toBe(['@type' => 'OpeningHoursSpecification', 'dayOfWeek' => 'Monday', 'opens' => '13:00']);
 });

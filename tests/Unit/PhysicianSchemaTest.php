@@ -26,8 +26,8 @@ function physician_term(string $name, string $slug = 'a-term'): object
  * `thumbnail` (a URL, or null for none), `meta` (the `_syndicated_api_data` value),
  * `education` (rows of the education repeater).
  *
- * @param  array<string, mixed>  $o
- * @return array<string, mixed>
+ * @param  array{fields?: array<int, array<string, mixed>>, terms?: array<string, array<int, mixed>>, status?: array<int, string>, titles?: array<int, string>, thumbnail?: string|null, meta?: mixed, education?: list<array<string, mixed>>}  $o
+ * @return array<array-key, mixed>
  */
 function physician_schema_for(array $o = []): array
 {
@@ -42,17 +42,17 @@ function physician_schema_for(array $o = []): array
     when('wp_json_encode')->alias('json_encode');
     when('wp_strip_all_tags')->alias('strip_tags');
     when('get_the_ID')->justReturn(10);
-    when('get_permalink')->alias(static fn ($id): string => "https://uamshealth.com/p/$id/");
-    when('get_the_title')->alias(static fn ($id): string => $titles[$id] ?? "Title $id");
+    when('get_permalink')->alias(static fn (int $id): string => "https://uamshealth.com/p/$id/");
+    when('get_the_title')->alias(static fn (int $id): string => $titles[$id] ?? "Title $id");
     when('get_stylesheet_directory_uri')->justReturn('https://uamshealth.com/theme');
     when('plugins_url')->alias(static fn (string $path): string => "https://uamshealth.com/plugins/$path");
     when('has_post_thumbnail')->justReturn(isset($o['thumbnail']));
     when('get_the_post_thumbnail_url')->alias(static fn ($id, $size = null) => $size === 'large' ? ($o['thumbnail'] ?? false) : false);
     when('get_post_meta')->alias(static fn ($id, $key = '', $single = false) => $single ? ($o['meta'] ?? '') : [$o['meta'] ?? '']);
     when('is_wp_error')->alias(static fn ($thing): bool => $thing === 'error');
-    when('get_term')->alias(static fn ($id, string $taxonomy) => $terms[$taxonomy][$id] ?? false);
-    when('get_post_status')->alias(static fn ($id) => $status[$id] ?? false);
-    when('get_field')->alias(static function (string $name, $id = null) use ($fields) {
+    when('get_term')->alias(static fn (int $id, string $taxonomy) => $terms[$taxonomy][$id] ?? false);
+    when('get_post_status')->alias(static fn (int $id) => $status[$id] ?? false);
+    when('get_field')->alias(static function (string $name, int $id) use ($fields) {
         $set = $fields[$id] ?? [];
 
         return array_key_exists($name, $set) ? $set[$name] : false;
@@ -77,10 +77,10 @@ function physician_schema_for(array $o = []): array
     uams_physician_schema();
     $out = (string) ob_get_clean();
 
-    $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
+    $schema = decode_jsonld($out);
 
-    expect($schema['@context'])->toBe('https://schema.org')
-        ->and($schema['@type'])->toBe('Physician');
+    expect(schema_at($schema, '@context'))->toBe('https://schema.org')
+        ->and(schema_at($schema, '@type'))->toBe('Physician');
 
     return $schema;
 }
@@ -90,7 +90,7 @@ function physician_schema_for(array $o = []): array
  */
 function physician_rating(int $count, mixed $value = 4.5, ?int $comments = 0, int|string $code = '200'): object
 {
-    return json_decode((string) json_encode([
+    $rating = json_decode((string) json_encode([
         'status' => ['code' => $code],
         'data' => ['entities' => [[
             'totalRatingCount' => $count,
@@ -98,6 +98,8 @@ function physician_rating(int $count, mixed $value = 4.5, ?int $comments = 0, in
             ...($comments === null ? [] : ['totalCommentCount' => $comments]),
         ]]],
     ]));
+
+    return is_object($rating) ? $rating : throw new UnexpectedValueException('The rating is not an object.');
 }
 
 it('writes the fixed properties for a provider with nothing filled in', function (): void {
@@ -130,19 +132,19 @@ it('builds the name from first, middle and last', function (): void {
         'physician_suffix' => 'Jr.',
     ]]]);
 
-    expect($schema['name'])->toBe('Ada Byron Lovelace')
-        ->and($schema['givenName'])->toBe('Ada')
-        ->and($schema['familyName'])->toBe('Lovelace')
-        ->and($schema['additionalName'])->toBe('Byron')
-        ->and($schema['honorificPrefix'])->toBe('Dr.')
-        ->and($schema['honorificSuffix'])->toBe('Jr.');
+    expect(schema_at($schema, 'name'))->toBe('Ada Byron Lovelace')
+        ->and(schema_at($schema, 'givenName'))->toBe('Ada')
+        ->and(schema_at($schema, 'familyName'))->toBe('Lovelace')
+        ->and(schema_at($schema, 'additionalName'))->toBe('Byron')
+        ->and(schema_at($schema, 'honorificPrefix'))->toBe('Dr.')
+        ->and(schema_at($schema, 'honorificSuffix'))->toBe('Jr.');
 });
 
 it('leaves out the optional name parts that are empty', function (): void {
     $schema = physician_schema_for(['fields' => [10 => ['physician_first_name' => 'Ada', 'physician_last_name' => 'Lovelace']]]);
 
     expect($schema)->not->toHaveKeys(['additionalName', 'honorificPrefix', 'honorificSuffix'])
-        ->and($schema['name'])->toBe('Ada  Lovelace');
+        ->and(schema_at($schema, 'name'))->toBe('Ada  Lovelace');
 });
 
 it('appends degrees to the name and lets them replace the suffix', function (): void {
@@ -156,8 +158,8 @@ it('appends degrees to the name and lets them replace the suffix', function (): 
         'terms' => ['degree' => [1 => physician_term('MD'), 2 => physician_term('PhD')]],
     ]);
 
-    expect($schema['name'])->toBe('Ada  Lovelace, MD, PhD')
-        ->and($schema['honorificSuffix'])->toBe('MD, PhD');
+    expect(schema_at($schema, 'name'))->toBe('Ada  Lovelace, MD, PhD')
+        ->and(schema_at($schema, 'honorificSuffix'))->toBe('MD, PhD');
 });
 
 it('skips a degree whose term is missing or an error, and a degree field that is not a list', function (mixed $degrees): void {
@@ -166,7 +168,7 @@ it('skips a degree whose term is missing or an error, and a degree field that is
         'terms' => ['degree' => [1 => physician_term('MD'), 2 => 'error']],
     ]);
 
-    expect($schema['name'])->toBe('Lovelace')
+    expect(schema_at($schema, 'name'))->toBe('Lovelace')
         ->and($schema)->not->toHaveKey('honorificSuffix');
 })->with([
     'missing term' => [[99]],
@@ -181,7 +183,7 @@ it('writes the clinical title as the job title', function (): void {
         'terms' => ['clinical_title' => [5 => physician_term('Cardiologist')]],
     ]);
 
-    expect($schema['jobTitle'])->toBe('Cardiologist');
+    expect(schema_at($schema, 'jobTitle'))->toBe('Cardiologist');
 });
 
 it('writes no job title for a missing or error term', function (mixed $term): void {
@@ -199,26 +201,26 @@ it('describes the provider with the short bio, stripped of tags', function (): v
         'physician_clinical_bio' => 'Long bio',
     ]]]);
 
-    expect($schema['description'])->toBe('Short bio');
+    expect(schema_at($schema, 'description'))->toBe('Short bio');
 });
 
 it('falls back to the clinical bio, cut to 250 characters', function (): void {
     $schema = physician_schema_for(['fields' => [10 => ['physician_clinical_bio' => '<p>'.str_repeat('a', 300).'</p>']]]);
 
-    expect($schema['description'])->toBe(str_repeat('a', 247).'...')
-        ->and(mb_strlen($schema['description']))->toBe(250);
+    expect(schema_at($schema, 'description'))->toBe(str_repeat('a', 247).'...')
+        ->and(mb_strlen(schema_text($schema, 'description')))->toBe(250);
 });
 
 it('keeps a clinical bio that is short enough whole', function (): void {
     $schema = physician_schema_for(['fields' => [10 => ['physician_clinical_bio' => '<i>Brief</i>']]]);
 
-    expect($schema['description'])->toBe('Brief');
+    expect(schema_at($schema, 'description'))->toBe('Brief');
 });
 
 it('uses the featured image when there is one', function (): void {
     $schema = physician_schema_for(['thumbnail' => 'https://uamshealth.com/uploads/ada.jpg']);
 
-    expect($schema['image'])->toBe('https://uamshealth.com/uploads/ada.jpg');
+    expect(schema_at($schema, 'image'))->toBe('https://uamshealth.com/uploads/ada.jpg');
 });
 
 it('lists languages and skips unusable terms', function (): void {
@@ -227,7 +229,7 @@ it('lists languages and skips unusable terms', function (): void {
         'terms' => ['language' => [1 => physician_term('Spanish'), 2 => 'error']],
     ]);
 
-    expect($schema['knowsLanguage'])->toBe(['Spanish']);
+    expect(schema_at($schema, 'knowsLanguage'))->toBe(['Spanish']);
 });
 
 it('ignores a language field that is not a list', function (): void {
@@ -251,7 +253,7 @@ it('writes no languages when none resolve', function (): void {
 it('writes the NPI as an identifier', function (): void {
     $schema = physician_schema_for(['fields' => [10 => ['physician_npi' => '1234567890']]]);
 
-    expect($schema['identifier'])->toBe(['@type' => 'PropertyValue', 'propertyID' => 'NPI', 'value' => '1234567890']);
+    expect(schema_at($schema, 'identifier'))->toBe(['@type' => 'PropertyValue', 'propertyID' => 'NPI', 'value' => '1234567890']);
 });
 
 it('maps the accepting-patients field to a boolean unless it is unset', function (mixed $value, ?bool $expected): void {
@@ -263,7 +265,7 @@ it('maps the accepting-patients field to a boolean unless it is unset', function
         return;
     }
 
-    expect($schema['isAcceptingNewPatients'])->toBe($expected);
+    expect(schema_at($schema, 'isAcceptingNewPatients'))->toBe($expected);
 })->with([
     'one' => [1, true],
     'string one' => ['1', true],
@@ -284,8 +286,8 @@ it('lists published conditions and treatments as specialties, and conditions as 
         'titles' => [21 => 'Asthma', 23 => 'Angina', 31 => 'Stent'],
     ]);
 
-    expect($schema['medicalSpecialty'])->toBe(['Asthma', 'Angina', 'Stent'])
-        ->and($schema['expertiseCondition'])->toBe([
+    expect(schema_at($schema, 'medicalSpecialty'))->toBe(['Asthma', 'Angina', 'Stent'])
+        ->and(schema_at($schema, 'expertiseCondition'))->toBe([
             ['@type' => 'MedicalCondition', 'name' => 'Asthma', 'url' => 'https://uamshealth.com/p/21/'],
             ['@type' => 'MedicalCondition', 'name' => 'Angina', 'url' => 'https://uamshealth.com/p/23/'],
         ]);
@@ -298,7 +300,7 @@ it('de-duplicates specialty titles and re-indexes them', function (): void {
         'titles' => [21 => 'Same', 22 => 'Same', 23 => 'Other', 31 => 'Other'],
     ]);
 
-    expect($schema['medicalSpecialty'])->toBe(['Same', 'Other']);
+    expect(schema_at($schema, 'medicalSpecialty'))->toBe(['Same', 'Other']);
 });
 
 it('writes only specialties, with no expertise, when only treatments are published', function (): void {
@@ -307,7 +309,7 @@ it('writes only specialties, with no expertise, when only treatments are publish
         'status' => [31 => 'publish'],
     ]);
 
-    expect($schema['medicalSpecialty'])->toBe(['Title 31'])
+    expect(schema_at($schema, 'medicalSpecialty'))->toBe(['Title 31'])
         ->and($schema)->not->toHaveKey('expertiseCondition');
 });
 
@@ -332,7 +334,7 @@ it('writes education as credentials, with the type falling back to Medical Educa
         ],
     ]);
 
-    expect($schema['hasCredential'])->toBe([
+    expect(schema_at($schema, 'hasCredential'))->toBe([
         [
             '@type' => 'EducationalOccupationalCredential',
             'educationalLevel' => 'Residency',
@@ -369,9 +371,9 @@ it('writes board certifications after the education credentials', function (): v
         ],
     ]);
 
-    expect(array_column($schema['hasCredential'], 'name'))->toBe(['Cardiology'])
-        ->and($schema['hasCredential'][0]['educationalLevel'])->toBe('Medical Education')
-        ->and($schema['hasCredential'][1])->toBe([
+    expect(array_column(schema_rows($schema, 'hasCredential'), 'name'))->toBe(['Cardiology'])
+        ->and(schema_at($schema, 'hasCredential.0.educationalLevel'))->toBe('Medical Education')
+        ->and(schema_at($schema, 'hasCredential.1'))->toBe([
             '@type' => 'EducationalOccupationalCredential',
             'credentialCategory' => 'Board Certification',
             'name' => 'Cardiology',
@@ -384,7 +386,7 @@ it('writes board certifications alone when there is no education', function (): 
         'terms' => ['boards' => [1 => physician_term('Cardiology')]],
     ]);
 
-    expect($schema['hasCredential'])->toBe([[
+    expect(schema_at($schema, 'hasCredential'))->toBe([[
         '@type' => 'EducationalOccupationalCredential',
         'credentialCategory' => 'Board Certification',
         'name' => 'Cardiology',
@@ -434,8 +436,8 @@ it('writes a single location as one address and as a clinic', function (): void 
         'postalCode' => '72205',
     ];
 
-    expect($schema['address'])->toBe($address)
-        ->and($schema['workLocation'])->toBe([[
+    expect(schema_at($schema, 'address'))->toBe($address)
+        ->and(schema_at($schema, 'workLocation'))->toBe([[
             '@type' => 'MedicalClinic',
             'name' => 'Main Clinic',
             'url' => 'https://uamshealth.com/p/50/',
@@ -455,8 +457,8 @@ it('writes a list of addresses for several locations and skips unpublished ones'
         'status' => [50 => 'publish', 51 => 'draft', 52 => 'publish'],
     ]);
 
-    expect(array_column($schema['address'], 'addressLocality'))->toBe(['Little Rock', 'Conway'])
-        ->and(array_column($schema['workLocation'], 'name'))->toBe(['Title 50', 'Title 52']);
+    expect(array_column(schema_rows($schema, 'address'), 'addressLocality'))->toBe(['Little Rock', 'Conway'])
+        ->and(array_column(schema_rows($schema, 'workLocation'), 'name'))->toBe(['Title 50', 'Title 52']);
 });
 
 it('writes no telephone for a location without a phone', function (): void {
@@ -465,7 +467,7 @@ it('writes no telephone for a location without a phone', function (): void {
         'status' => [50 => 'publish'],
     ]);
 
-    expect($schema['workLocation'][0])->not->toHaveKey('telephone');
+    expect(schema_at($schema, 'workLocation.0'))->not->toHaveKey('telephone');
 });
 
 it('reads the address from the parent location when a child location has one', function (): void {
@@ -478,9 +480,9 @@ it('reads the address from the parent location when a child location has one', f
         'status' => [50 => 'publish'],
     ]);
 
-    expect($schema['address']['addressLocality'])->toBe('Parent City')
-        ->and($schema['workLocation'][0]['telephone'])->toBe('+1-501-555-0100')
-        ->and($schema['workLocation'][0]['name'])->toBe('Title 50');
+    expect(schema_at($schema, 'address.addressLocality'))->toBe('Parent City')
+        ->and(schema_at($schema, 'workLocation.0.telephone'))->toBe('+1-501-555-0100')
+        ->and(schema_at($schema, 'workLocation.0.name'))->toBe('Title 50');
 });
 
 it('keeps the location own address unless both the parent flag and id are set', function (array $set): void {
@@ -493,7 +495,7 @@ it('keeps the location own address unless both the parent flag and id are set', 
         'status' => [50 => 'publish'],
     ]);
 
-    expect($schema['address']['addressLocality'])->toBe('Child City');
+    expect(schema_at($schema, 'address.addressLocality'))->toBe('Child City');
 })->with([
     'flag only' => [['location_parent' => true]],
     'id only' => [['location_parent_id' => 60]],
@@ -514,7 +516,7 @@ it('writes the building and suite as the second address line', function (): void
         'terms' => ['building' => [7 => physician_term('Jones Building', 'jones')]],
     ]);
 
-    expect($schema['address']['streetAddress'])->toBe('4301 W Markham Jones Building Suite 200');
+    expect(schema_at($schema, 'address.streetAddress'))->toBe('4301 W Markham Jones Building Suite 200');
 });
 
 it('ignores the placeholder building and a building term that does not resolve', function (mixed $term): void {
@@ -527,7 +529,7 @@ it('ignores the placeholder building and a building term that does not resolve',
         'terms' => ['building' => [7 => $term]],
     ]);
 
-    expect($schema['address']['streetAddress'])->toBe('1 Main Suite 9');
+    expect(schema_at($schema, 'address.streetAddress'))->toBe('1 Main Suite 9');
 })->with([
     'placeholder' => [physician_term('None', '_none')],
     'error' => ['error'],
@@ -540,7 +542,7 @@ it('writes a rating with a review count for 30 or more ratings', function (): vo
         'meta' => physician_rating(30, 4.5, 12),
     ]);
 
-    expect($schema['aggregateRating'])->toBe([
+    expect(schema_at($schema, 'aggregateRating'))->toBe([
         '@type' => 'AggregateRating',
         'ratingValue' => '4.5',
         'bestRating' => '5',
@@ -555,7 +557,7 @@ it('leaves the review count out when there are no comments', function (int $comm
         'meta' => physician_rating(45, 4.8, $comments),
     ]);
 
-    expect($schema['aggregateRating'])->toBe([
+    expect(schema_at($schema, 'aggregateRating'))->toBe([
         '@type' => 'AggregateRating',
         'ratingValue' => '4.8',
         'bestRating' => '5',
@@ -594,7 +596,7 @@ it('falls back to Medical Education for an education type term that is an error 
         'terms' => ['school' => [1 => physician_term('UAMS')], 'educationtype' => [2 => $term]],
     ]);
 
-    expect($schema['hasCredential'][0]['educationalLevel'])->toBe('Medical Education');
+    expect(schema_at($schema, 'hasCredential.0.educationalLevel'))->toBe('Medical Education');
 })->with(['error' => ['error'], 'missing' => [false]]);
 
 it('writes an empty address for a location with no address fields', function (): void {
@@ -603,7 +605,7 @@ it('writes an empty address for a location with no address fields', function ():
         'status' => [50 => 'publish'],
     ]);
 
-    expect($schema['address'])->toBe([
+    expect(schema_at($schema, 'address'))->toBe([
         '@type' => 'PostalAddress',
         'streetAddress' => '',
         'addressLocality' => '',
@@ -618,7 +620,7 @@ it('trims the street when only the first address line is set', function (): void
         'status' => [50 => 'publish'],
     ]);
 
-    expect($schema['address']['streetAddress'])->toBe('1 Main St');
+    expect(schema_at($schema, 'address.streetAddress'))->toBe('1 Main St');
 });
 
 it('writes a rating when the status code is the integer 200', function (): void {
@@ -635,5 +637,5 @@ it('leaves the review count out when the API sends no comment count, and writes 
     $one = physician_schema_for(['fields' => [10 => ['physician_npi' => '123']], 'meta' => physician_rating(30, 4.5, 1)]);
 
     expect($without['aggregateRating'])->not->toHaveKey('reviewCount')
-        ->and($one['aggregateRating']['reviewCount'])->toBe('1');
+        ->and(schema_at($one, 'aggregateRating.reviewCount'))->toBe('1');
 });

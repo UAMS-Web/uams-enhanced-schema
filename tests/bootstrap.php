@@ -10,10 +10,6 @@
 
 declare(strict_types=1);
 
-use function Brain\Monkey\Functions\when;
-use function Brain\Monkey\setUp;
-use function Brain\Monkey\tearDown;
-
 require_once __DIR__.'/../vendor/autoload.php';
 
 /*
@@ -34,40 +30,11 @@ if (! defined('ABSPATH')) {
 }
 
 /*
- * Load the plugin file inside one Brain Monkey session, so its file-scope
- * add_action() calls resolve. Do not define permanent WordPress function stubs
- * in this file: Patchwork treats this bootstrap as too early and Brain Monkey
- * cannot redefine them in tests (DefinedTooEarly).
+ * The plugin file is NOT loaded here. A file loaded by the bootstrap is already in
+ * memory before a mutation run installs its runner, so none of its mutants would
+ * take effect and every one would be scored as killed. tests/Pest.php loads it
+ * from the first test's `beforeEach`, after the runner is in place (see
+ * `load_plugin()` there).
  */
-setUp();
-
-when('plugin_dir_path')->justReturn(__DIR__.'/../');
-when('plugin_dir_url')->justReturn('https://example.test/wp-content/plugins/'.basename(dirname(__DIR__)).'/');
-when('plugin_basename')->alias(static fn ($file): string => basename(dirname($file)).'/'.basename($file));
-when('is_multisite')->justReturn(false);
-when('get_site_option')->alias(static fn ($key, $default = false) => $default);
-when('get_option')->alias(static fn ($key, $default = false) => $default);
-when('update_option')->justReturn();
-when('register_activation_hook')->justReturn();
-when('register_deactivation_hook')->justReturn();
-when('register_uninstall_hook')->justReturn();
-when('load_plugin_textdomain')->justReturn();
-when('is_admin')->justReturn(false);
-when('wp_enqueue_script')->justReturn();
-when('wp_enqueue_style')->justReturn();
-when('wp_register_script')->justReturn();
-when('wp_register_style')->justReturn();
-when('wp_localize_script')->justReturn();
-when('esc_html')->returnArg();
-when('esc_attr')->returnArg();
-when('esc_url')->returnArg();
-when('__')->returnArg();
-when('_e')->justReturn();
-when('esc_html__')->returnArg();
-when('esc_attr__')->returnArg();
-
-require_once __DIR__.'/../uams-enhanced-schema.php';
-
-tearDown();
 
 // cspell:ignore ABSPATH autoloaded

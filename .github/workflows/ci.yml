@@ -56,7 +56,7 @@ jobs:
   checks:
     # Pinned to a release tag, never a branch or a commit, so a change to the chain reaches
     # this plugin only when the pin moves. To take a newer chain, move the pin to the next tag.
-    uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.11.1
+    uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.13.0
     with:
       linux-only: true
       mutate-paths: uams-enhanced-schema.php

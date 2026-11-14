@@ -30,21 +30,39 @@ if (! defined('UAMS_SCHEMA_MODE')) {
 }
 
 // ─── Strip existing inline schema from templates when in replace mode ───
-add_action('wp_loaded', function (): void {
-    ob_start(function ($html) {
-        // Only strip schema blocks that use the old http://www.schema.org context
-        // from physician and location single pages
-        if (is_singular('provider') || is_singular('location')) {
-            return preg_replace(
-                '/<script\s+type=[\'"]application\/ld\+json[\'"]>\s*\{[^}]*"@context":\s*"http:\/\/www\.schema\.org".*?\}\s*<\/script>/s',
-                '<!-- UAMS Enhanced Schema: original schema replaced -->',
-                $html
-            );
-        }
+/**
+ * Registers the output buffer that strips the original inline schema.
+ *
+ * The mode arrives as a parameter, not as the constant, so a static analyzer
+ * cannot fold the comparison: the constant has a default defined above, and
+ * folding it deleted this check once (safe mode then stripped as well).
+ *
+ * @param  string  $mode  The value of UAMS_SCHEMA_MODE: 'replace' or 'safe'.
+ */
+function uams_enhanced_schema_register_stripping(string $mode): void
+{
+    if ($mode !== 'replace') {
+        return;
+    }
 
-        return $html;
+    add_action('wp_loaded', function (): void {
+        ob_start(function ($html) {
+            // Only strip schema blocks that use the old http://www.schema.org context
+            // from physician and location single pages
+            if (is_singular('provider') || is_singular('location')) {
+                return preg_replace(
+                    '/<script\s+type=[\'"]application\/ld\+json[\'"]>\s*\{[^}]*"@context":\s*"http:\/\/www\.schema\.org".*?\}\s*<\/script>/s',
+                    '<!-- UAMS Enhanced Schema: original schema replaced -->',
+                    $html
+                );
+            }
+
+            return $html;
+        });
     });
-});
+}
+
+uams_enhanced_schema_register_stripping(UAMS_SCHEMA_MODE);
 
 // ─── Output enhanced schema in wp_footer ───
 add_action('wp_footer', 'uams_enhanced_schema_output', 99);

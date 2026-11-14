@@ -46,7 +46,9 @@ final class FakeWpQuery
     {
         self::$built[] = $args;
 
-        foreach (self::$titles[(string) ($args['post_type'] ?? '')] ?? [] as $title) {
+        $type = $args['post_type'] ?? '';
+
+        foreach (self::$titles[is_string($type) ? $type : ''] ?? [] as $title) {
             $this->posts[] = (object) ['post_title' => $title];
         }
     }

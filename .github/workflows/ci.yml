@@ -7,10 +7,11 @@ name: CI
 # plugin does not carry a copy that drifts. The call runs on Linux only and switches on
 # `floor-lint`, which parses the shipped PHP under the supported floor, PHP 8.2, and
 # `download-archive`, which checks that the GitHub download holds only what the plugin
-# runs. Two inputs stay off:
-#   - `mutate: false`: mutation testing needs the coverage work in
-#     UAMS-Web/uams-enhanced-schema#3 (its closing slice turns the job on).
+# runs, and mutation testing. One input stays off:
 #   - `phpcs` is off: this plugin has no PHPCS configuration.
+# The `mutate` job runs `composer mutate` with PCOV. A pull request or push mutates only the
+# changed PHP files among `mutate-paths`, which is the plugin file; a manual run mutates
+# everything `composer mutate` covers. It fails on any survivor, uncovered or timed-out mutant.
 # The unit suite runs as `composer test:unit`. The chain's own header lists every input
 # and its default.
 #
@@ -28,7 +29,7 @@ name: CI
 #
 # What the plugin carries for the call, because the called jobs check out this repository:
 # `.github/actions/setup/action.yml`, the synced `.claude/skills` scripts, and the Composer
-# scripts `test:pint`, `test:refactor`, `stan` and `test:unit`.
+# scripts `test:pint`, `test:refactor`, `stan`, `test:unit` and `mutate`.
 
 on:
   pull_request:
@@ -53,7 +54,8 @@ jobs:
     uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.11.1
     with:
       linux-only: true
-      mutate: false
+      mutate-paths: uams-enhanced-schema.php
+      mutate-ignore-paths: uams-enhanced-schema.php tests
       floor-lint: true
       floor-lint-php: '8.2'
       # The chain's default command is a script this plugin does not carry, so the call names

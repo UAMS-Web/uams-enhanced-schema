@@ -189,18 +189,6 @@ function uams_physician_schema(): void
 
     // ── Treatments (CPT post IDs) ──
     $treatment_ids = get_field('physician_treatments_cpt', $post_id);
-    $treatments = [];
-    if ($treatment_ids && is_array($treatment_ids)) {
-        foreach ($treatment_ids as $tid) {
-            if (get_post_status($tid) === 'publish') {
-                $treatments[] = [
-                    '@type' => 'MedicalTherapy',
-                    'name' => get_the_title($tid),
-                    'url' => get_permalink($tid),
-                ];
-            }
-        }
-    }
 
     // ── Medical specialties — combine conditions + treatments for medicalSpecialty ──
     $specialties = [];
@@ -855,56 +843,6 @@ function uams_condition_schema(): void
         }
     }
 
-    // Related providers (post IDs)
-    $physician_ids = get_field('condition_physicians', $post_id);
-    $providers = [];
-    if ($physician_ids && is_array($physician_ids)) {
-        foreach (array_slice($physician_ids, 0, 20) as $doc_id) {
-            if (get_post_status($doc_id) !== 'publish') {
-                continue;
-            }
-
-            $doc_degrees = [];
-            $doc_degree_ids = get_field('physician_degree', $doc_id);
-            if ($doc_degree_ids && is_array($doc_degree_ids)) {
-                foreach ($doc_degree_ids as $did) {
-                    $dt = get_term($did, 'degree');
-                    if ($dt && ! is_wp_error($dt)) {
-                        $doc_degrees[] = $dt->name;
-                    }
-                }
-            }
-
-            $doc_name = get_the_title($doc_id);
-            if ($doc_degrees !== []) {
-                $doc_name .= ', '.implode(', ', $doc_degrees);
-            }
-
-            $providers[] = [
-                '@type' => 'Physician',
-                'name' => $doc_name,
-                'url' => get_permalink($doc_id),
-            ];
-        }
-    }
-
-    // Related locations (post IDs)
-    $location_ids = get_field('condition_locations', $post_id);
-    $available_at = [];
-    if ($location_ids && is_array($location_ids)) {
-        foreach (array_slice($location_ids, 0, 20) as $loc_id) {
-            if (get_post_status($loc_id) !== 'publish') {
-                continue;
-            }
-
-            $available_at[] = [
-                '@type' => 'MedicalClinic',
-                'name' => get_the_title($loc_id),
-                'url' => get_permalink($loc_id),
-            ];
-        }
-    }
-
     // MedlinePlus code
     $medline_type = get_field('medline_code_type', $post_id);
     $medline_code = get_field('medline_code_id', $post_id);
@@ -938,18 +876,11 @@ function uams_condition_schema(): void
         $schema['possibleTreatment'] = $possible_treatments;
     }
 
-    if ($providers !== []) {
-        $schema['associatedAnatomy'] = null; // placeholder — remove if no anatomy data
-    }
-
     $schema['isPartOf'] = [
         '@type' => 'MedicalOrganization',
         'name' => 'UAMS Health',
         'url' => 'https://uamshealth.com',
     ];
-
-    // Remove null values
-    $schema = array_filter($schema, fn ($v): bool => $v !== null);
 
     uams_output_jsonld($schema);
 
@@ -999,39 +930,6 @@ function uams_treatment_schema(): void
                     'url' => get_permalink($cid),
                 ];
             }
-        }
-    }
-
-    // Related providers
-    $physician_ids = get_field('treatment_procedure_physicians', $post_id);
-    $providers = [];
-    if ($physician_ids && is_array($physician_ids)) {
-        foreach (array_slice($physician_ids, 0, 20) as $doc_id) {
-            if (get_post_status($doc_id) !== 'publish') {
-                continue;
-            }
-
-            $doc_degrees = [];
-            $doc_degree_ids = get_field('physician_degree', $doc_id);
-            if ($doc_degree_ids && is_array($doc_degree_ids)) {
-                foreach ($doc_degree_ids as $did) {
-                    $dt = get_term($did, 'degree');
-                    if ($dt && ! is_wp_error($dt)) {
-                        $doc_degrees[] = $dt->name;
-                    }
-                }
-            }
-
-            $doc_name = get_the_title($doc_id);
-            if ($doc_degrees !== []) {
-                $doc_name .= ', '.implode(', ', $doc_degrees);
-            }
-
-            $providers[] = [
-                '@type' => 'Physician',
-                'name' => $doc_name,
-                'url' => get_permalink($doc_id),
-            ];
         }
     }
 

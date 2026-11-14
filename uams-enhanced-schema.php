@@ -330,7 +330,7 @@ function uams_physician_schema(): void
     $aggregate_rating = null;
     $pg_rating_data = get_post_meta($post_id, '_syndicated_api_data', true);
     if ($npi && ! empty($pg_rating_data)) {
-        if (! empty($pg_rating_data) && isset($pg_rating_data->status->code) && $pg_rating_data->status->code == '200') {
+        if (isset($pg_rating_data->status->code) && $pg_rating_data->status->code == '200') {
             // A default of -1 or 1 stays below the 30-rating floor like 0.
             // @pest-mutate-ignore:DecrementInteger,IncrementInteger
             $total_ratings = $pg_rating_data->data->entities[0]->totalRatingCount ?? 0;

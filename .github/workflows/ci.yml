@@ -5,12 +5,11 @@ name: CI
 # The lint, static-analysis and unit chain is the shared one, `UAMS-Web/uams-ci-workflows`,
 # called by the `checks` job. One definition serves every UAMS-Web repository, so this
 # plugin does not carry a copy that drifts. The call runs on Linux only and switches on
-# `floor-lint`, which parses the shipped PHP under the supported floor, PHP 8.2. Three
-# inputs stay off, each until the ticket that makes them pass:
+# `floor-lint`, which parses the shipped PHP under the supported floor, PHP 8.2, and
+# `download-archive`, which checks that the GitHub download holds only what the plugin
+# runs. Two inputs stay off:
 #   - `mutate: false`: mutation testing needs the coverage work in
 #     UAMS-Web/uams-enhanced-schema#3 (its closing slice turns the job on).
-#   - `download-archive` is off until the keep-list in
-#     UAMS-Web/uams-enhanced-schema#14 exists.
 #   - `phpcs` is off: this plugin has no PHPCS configuration.
 # The unit suite runs as `composer test:unit`. The chain's own header lists every input
 # and its default.
@@ -57,14 +56,16 @@ jobs:
       mutate: false
       floor-lint: true
       floor-lint-php: '8.2'
-      # The chain's default command reads a download keep-list this plugin does not have yet
-      # (UAMS-Web/uams-enhanced-schema#14), so the call names the files itself: every PHP file
-      # outside the dependencies, the tests and the synced agent folders.
+      # The chain's default command is a script this plugin does not carry, so the call names
+      # the files itself: every PHP file outside the dependencies, the tests and the synced
+      # agent folders.
       floor-lint-command: |
         files=$(find . -name '*.php' -not -path './vendor/*' -not -path './tests/*' -not -path './.claude/*' -not -path './.agents/*' -not -path './.cursor/*' -not -path './.phpstan/*' | sort)
         # A lint that read no file proves nothing.
         if [ -z "$files" ]; then echo "::error::No PHP files found to lint"; exit 2; fi
         echo "$files" | while read -r f; do php -l "$f" || exit 1; done
+      download-archive: true
+      download-archive-command: node .claude/skills/download-archive-check/check-download-archive.mjs
       pest-command: composer test:unit
 
   guard:

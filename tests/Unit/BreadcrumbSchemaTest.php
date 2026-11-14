@@ -145,3 +145,11 @@ it('trims a provider name that has only a first name', function (): void {
 
     expect(end($items)['name'])->toBe('Ada');
 });
+
+it('trims a provider name that has only a last name', function (): void {
+    when('is_wp_error')->justReturn(false);
+
+    $items = breadcrumb_for('provider', ['physician_last_name' => 'Lovelace']);
+
+    expect(end($items)['name'])->toBe('Lovelace');
+});

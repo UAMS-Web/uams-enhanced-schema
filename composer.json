@@ -35,7 +35,7 @@
         "test:unit": "pest",
         "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
         "mutate": [
-            "@putenv COMPOSER_PROCESS_TIMEOUT=0",
+            "Composer\\Config::disableProcessTimeout",
             "pest tests/Unit/*Test.php --mutate --covered-only --path=uams-enhanced-schema.php"
         ],
         "stan": "phpstan analyse --no-progress --memory-limit=2G",

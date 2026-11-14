@@ -57,6 +57,14 @@ jobs:
       mutate: false
       floor-lint: true
       floor-lint-php: '8.2'
+      # The chain's default command reads a download keep-list this plugin does not have yet
+      # (UAMS-Web/uams-enhanced-schema#14), so the call names the files itself: every PHP file
+      # outside the dependencies, the tests and the synced agent folders.
+      floor-lint-command: |
+        files=$(find . -name '*.php' -not -path './vendor/*' -not -path './tests/*' -not -path './.claude/*' -not -path './.agents/*' -not -path './.cursor/*' -not -path './.phpstan/*' | sort)
+        # A lint that read no file proves nothing.
+        if [ -z "$files" ]; then echo "::error::No PHP files found to lint"; exit 2; fi
+        echo "$files" | while read -r f; do php -l "$f" || exit 1; done
       pest-command: composer test:unit
 
   guard:

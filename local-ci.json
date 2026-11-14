@@ -1,6 +1,6 @@
 {
   "base": "main",
-  "php": "7.4",
+  "php": "8.4",
   "chain": false,
   "guard": {
     "deny": [
@@ -20,6 +20,19 @@
       "each": [
         "**/*.php",
         "!vendor/**",
+        "!tests-legacy/**",
+        "!rector*.php"
+      ],
+      "always": true
+    },
+    {
+      "name": "lint-floor",
+      "run": "php -l",
+      "php": "8.2",
+      "each": [
+        "**/*.php",
+        "!vendor/**",
+        "!tests/**",
         "!tests-legacy/**",
         "!rector*.php"
       ],

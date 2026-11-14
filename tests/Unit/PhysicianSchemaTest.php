@@ -57,7 +57,13 @@ function physician_schema_for(array $o = []): array
 
         return array_key_exists($name, $set) ? $set[$name] : false;
     });
-    when('have_rows')->alias(static function (string $name) use ($rows, &$cursor): bool {
+    $asked = 0;
+    when('have_rows')->alias(static function (string $name) use ($rows, &$cursor, &$asked): bool {
+        // A writer that never advances the row would loop for ever, which a mutation run scores as a timeout.
+        if (++$asked > 100) {
+            throw new LogicException('have_rows() was asked 100 times without the repeater ending.');
+        }
+
         return $name === 'physician_education' && $cursor < count($rows);
     });
     when('the_row')->alias(static function () use ($rows, &$cursor, &$current): void {

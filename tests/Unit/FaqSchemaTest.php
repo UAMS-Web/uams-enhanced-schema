@@ -19,7 +19,14 @@ function fake_repeaters(array $repeaters): void
     $cursor = 0;
     $current = [];
 
-    when('have_rows')->alias(static function (string $field) use ($repeaters, &$cursor): bool {
+    $asked = 0;
+
+    when('have_rows')->alias(static function (string $field) use ($repeaters, &$cursor, &$asked): bool {
+        // A writer that never advances the row would loop for ever, which a mutation run scores as a timeout.
+        if (++$asked > 100) {
+            throw new LogicException('have_rows() was asked 100 times without the repeater ending.');
+        }
+
         return isset($repeaters[$field]) && $cursor < count($repeaters[$field]);
     });
     when('the_row')->alias(static function () use ($repeaters, &$cursor, &$current): void {

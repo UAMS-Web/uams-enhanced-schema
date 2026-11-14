@@ -19,14 +19,9 @@ composer test:integration
 Run `composer setup:integration` before `composer stan` too: PHPStan reads the WordPress test classes from that install.
 
 
-## Local CI
+## CI
 
-```bash
-node .claude/skills/local-ci/local-ci.mjs --dry-run
-node .claude/skills/local-ci/local-ci.mjs --all
-```
-
-Private repositories validate with this runner rather than billed Actions minutes.
+Pull requests run the shared chain in `UAMS-Web/uams-ci-workflows` through `.github/workflows/ci.yml`. The required check is `CI`.
 
 ## Credits
 

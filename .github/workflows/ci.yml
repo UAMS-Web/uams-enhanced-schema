@@ -1,35 +1,76 @@
-# RUN_REMOTE_CI: budget kill-switch.
-# GitHub Actions minutes bill at the organization level, one pool shared by
-# every UAMS-Web repository, and only private repositories consume them. This
-# repository is private. Every job below is gated on
-# `if: vars.RUN_REMOTE_CI != 'false'`: with the variable set to `false` the jobs
-# report `skipped` and consume no runner minutes; unset, or any other value,
-# runs them as before.
-#
-# While the switch is off, the local CI runner (.claude/skills/local-ci/) is
-# the whole gate, not a fallback. Its verdict is posted on the pull request.
-# Job list mirrors local-ci.json; keep the two in step.
-#
-# PHP versions: `lint` runs on 8.2, the plugin's floor, and needs no Composer
-# install. The tooling jobs run on 8.4 because composer.lock is resolved for it
-# and the dev tools need it (Pint 8.3+, doctrine/instantiator 8.4+); none of
-# them ship in the plugin.
 name: CI
 
+# The checks this plugin runs on every pull request and on pushes to main.
+#
+# The lint, static-analysis and unit chain is the shared one, `UAMS-Web/uams-ci-workflows`,
+# called by the `checks` job. One definition serves every UAMS-Web repository, so this
+# plugin does not carry a copy that drifts. The call runs on Linux only and switches on
+# `floor-lint`, which parses the shipped PHP under the supported floor, PHP 8.2. Three
+# inputs stay off, each until the ticket that makes them pass:
+#   - `mutate: false`: mutation testing needs the coverage work in
+#     UAMS-Web/uams-enhanced-schema#3 (its closing slice turns the job on).
+#   - `download-archive` is off until the keep-list in
+#     UAMS-Web/uams-enhanced-schema#14 exists.
+#   - `phpcs` is off: this plugin has no PHPCS configuration.
+# The unit suite runs as `composer test:unit`. The chain's own header lists every input
+# and its default.
+#
+# `guard` stays here as a plain job beside the call: the shared chain does not publish it
+# yet (UAMS-Web/uams-ci-workflows#55).
+#
+# The last job, `CI`, is the one check a ruleset requires from this workflow (with the two
+# pull-request-body checks, `Attribution footer` and `Closing keywords`). It `needs:` the
+# call and `guard`, runs `if: always()`, and fails unless every needed job reports
+# `success`: a `skipped` or `cancelled` job fails it. The call ends in a `Chain result`
+# job that needs every job in the chain, so `checks` is `success` only when each of them
+# succeeded. Adding a plain job here means adding it to the `needs:` list of `CI`; the
+# `aggregate-needs` job in the chain fails the pull request when one is missing. Do not
+# rename `CI`, and do not rename `checks` without changing `needs:` below.
+#
+# What the plugin carries for the call, because the called jobs check out this repository:
+# `.github/actions/setup/action.yml`, the synced `.claude/skills` scripts, and the Composer
+# scripts `test:pint`, `test:refactor`, `stan` and `test:unit`.
+
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a pull request cancels that pull request's stale run. Every other run gets a
+# group of its own, keyed on the commit, so a later push never cancels it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
+  # The shared chain. Its checks report as `checks / <job name> (<operating system>)`.
+  checks:
+    # Pinned to a release tag, never a branch or a commit, so a change to the chain reaches
+    # this plugin only when the pin moves. To take a newer chain, move the pin to the next tag.
+    uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.11.1
+    with:
+      linux-only: true
+      mutate: false
+      floor-lint: true
+      floor-lint-php: '8.2'
+      # The chain's default command reads a download keep-list this plugin does not have yet
+      # (UAMS-Web/uams-enhanced-schema#14), so the call names the files itself: every PHP file
+      # outside the dependencies, the tests and the synced agent folders.
+      floor-lint-command: |
+        files=$(find . -name '*.php' -not -path './vendor/*' -not -path './tests/*' -not -path './.claude/*' -not -path './.agents/*' -not -path './.cursor/*' -not -path './.phpstan/*' | sort)
+        # A lint that read no file proves nothing.
+        if [ -z "$files" ]; then echo "::error::No PHP files found to lint"; exit 2; fi
+        echo "$files" | while read -r f; do php -l "$f" || exit 1; done
+      pest-command: composer test:unit
+
   guard:
     runs-on: ubuntu-latest
-    # Budget kill-switch: see the RUN_REMOTE_CI note in the header.
-    if: vars.RUN_REMOTE_CI != 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Guard against committed secrets / PII
         run: |
           bad=$(git ls-files | grep -E "sentinel-key\\.php$|wp-config\\.php$|\\.sql(\\.gz)?$|\\.(csv|tsv|xlsx?)$|\\.env(\\.|$)|\\.pem$|\\.key$" || true)
@@ -37,81 +78,25 @@ jobs:
             echo "::error::Tracked secret/PII file(s) detected:"; echo "$bad"; exit 1
           fi
 
-  lint:
+  # The one check a ruleset requires from this workflow.
+  ci:
+    name: CI
+    needs: [checks, guard]
+    if: always()
     runs-on: ubuntu-latest
-    # Budget kill-switch: see the RUN_REMOTE_CI note in the header.
-    if: vars.RUN_REMOTE_CI != 'false'
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          coverage: none
-          tools: composer
-      - name: php -l every PHP file
+      # `skipped` and `cancelled` fail as well as `failure`: a job that did not run proved nothing.
+      - name: Every needed job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          set -e
-          find . -name '*.php' -not -path './vendor/*' -not -path './vendor' -not -path './tests/*' -not -path './tests-legacy/*' -not -path './tests-legacy' -not -name 'rector*.php' -print0 \
-            | xargs -0 -I{} php -l "{}"
-
-  pint:
-    runs-on: ubuntu-latest
-    # Budget kill-switch: see the RUN_REMOTE_CI note in the header.
-    if: vars.RUN_REMOTE_CI != 'false'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: none
-          tools: composer
-      - run: composer install --no-interaction --prefer-dist --no-progress
-      - name: pint
-        run: composer test:pint
-
-  rector:
-    runs-on: ubuntu-latest
-    # Budget kill-switch: see the RUN_REMOTE_CI note in the header.
-    if: vars.RUN_REMOTE_CI != 'false'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: none
-          tools: composer
-      - run: composer install --no-interaction --prefer-dist --no-progress
-      - name: rector
-        run: composer test:refactor
-
-  phpstan:
-    runs-on: ubuntu-latest
-    # Budget kill-switch: see the RUN_REMOTE_CI note in the header.
-    if: vars.RUN_REMOTE_CI != 'false'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: none
-          tools: composer
-      - run: composer install --no-interaction --prefer-dist --no-progress
-      # PHPStan resolves WP_UnitTestCase from the Integration suite's own install.
-      - run: composer setup:integration --no-interaction
-      - name: phpstan
-        run: composer stan
-
-  phpunit:
-    runs-on: ubuntu-latest
-    # Budget kill-switch: see the RUN_REMOTE_CI note in the header.
-    if: vars.RUN_REMOTE_CI != 'false'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: none
-          tools: composer
-      - run: composer install --no-interaction --prefer-dist --no-progress
-      - name: phpunit
-        run: composer test:unit
+          echo "Needed job results: $RESULTS"
+          # An empty list would run no iterations and pass having read nothing.
+          if [ -z "$RESULTS" ]; then echo "::error::No needed job results to read"; exit 1; fi
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::A needed job reported $result"
+              exit 1
+            fi
+          done

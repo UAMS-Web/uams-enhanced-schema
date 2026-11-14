@@ -34,6 +34,10 @@
         ],
         "test:unit": "pest",
         "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
+        "mutate": [
+            "Composer\\Config::disableProcessTimeout",
+            "pest tests/Unit/*Test.php --mutate --covered-only --path=uams-enhanced-schema.php"
+        ],
         "stan": "phpstan analyse --no-progress --memory-limit=2G",
         "refactor": "rector",
         "refactor:sweep": "rector --clear-cache --config=rector-sweep.php",
@@ -46,7 +50,8 @@
         "setup:integration": "Install the Integration suite's own Composer setup (PHPUnit 9.6, wp-phpunit, the polyfills).",
         "test": "Run both suites, each in its own process, so the Unit suite never sees WordPress.",
         "test:unit": "Run the Pest suite that needs no WordPress and no database.",
-        "test:integration": "Run the PHPUnit 9.6 suite that boots WordPress through wp-phpunit against the test database."
+        "test:integration": "Run the PHPUnit 9.6 suite that boots WordPress through wp-phpunit against the test database.",
+        "mutate": "Run Pest mutation testing over the plugin file. Needs PCOV or Xdebug; takes several minutes."
     },
     "autoload-dev": {
         "psr-4": {

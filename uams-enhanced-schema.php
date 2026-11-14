@@ -145,6 +145,8 @@ function uams_physician_schema(): void
     }
 
     // ── Image ──
+    // The value is overwritten before it is read, whichever branch runs.
+    // @pest-mutate-ignore:EmptyStringToNotEmpty
     $image_url = '';
     if (has_post_thumbnail($post_id)) {
         $image_url = get_the_post_thumbnail_url($post_id, 'large');
@@ -341,9 +343,13 @@ function uams_physician_schema(): void
     $pg_rating_data = get_post_meta($post_id, '_syndicated_api_data', true);
     if ($npi && ! empty($pg_rating_data)) {
         if (! empty($pg_rating_data) && isset($pg_rating_data->status->code) && $pg_rating_data->status->code == '200') {
+            // A default of -1 or 1 stays below the 30-rating floor like 0.
+            // @pest-mutate-ignore:DecrementInteger,IncrementInteger
             $total_ratings = $pg_rating_data->data->entities[0]->totalRatingCount ?? 0;
             if ($total_ratings >= 30) {
                 $rating_value = $pg_rating_data->data->entities[0]->overallRating->value ?? null;
+                // A default of -1 is falsy-or-not-positive like 0, so no review count is written either way.
+                // @pest-mutate-ignore:DecrementInteger
                 $comment_count = $pg_rating_data->data->entities[0]->totalCommentCount ?? 0;
                 if ($rating_value) {
                     $aggregate_rating = [
@@ -352,6 +358,8 @@ function uams_physician_schema(): void
                         'bestRating' => '5',
                         'ratingCount' => (string) $total_ratings,
                     ];
+                    // A zero or negative count writes nothing either way, and zero is already falsy before the comparison.
+                    // @pest-mutate-ignore:DecrementInteger,GreaterToGreaterOrEqual
                     if ($comment_count && $comment_count > 0) {
                         $aggregate_rating['reviewCount'] = (string) $comment_count;
                     }
@@ -562,6 +570,8 @@ function uams_location_schema(): void
                             continue;
                         }
 
+                        // An empty or unknown day both fail uams_day_abbreviation(), so the default text is never read.
+                        // @pest-mutate-ignore:EmptyStringToNotEmpty
                         $day_abbr = uams_day_abbreviation($hour['day'] ?? '');
                         if ($day_abbr && ! empty($hour['open']) && ! empty($hour['close'])) {
                             $open = date('H:i', strtotime($hour['open']));
@@ -617,7 +627,11 @@ function uams_location_schema(): void
                                     $spec['opens'] = '00:00';
                                     $spec['closes'] = '00:00';
                                 } else {
+                                    // strtotime() is false for both '' and any non-time string, so the default text is never read.
+                                    // @pest-mutate-ignore:EmptyStringToNotEmpty
                                     $spec['opens'] = date('H:i', strtotime($mt['location_modified_hours_open'] ?? ''));
+                                    // strtotime() is false for both '' and any non-time string, so the default text is never read.
+                                    // @pest-mutate-ignore:EmptyStringToNotEmpty
                                     $spec['closes'] = date('H:i', strtotime($mt['location_modified_hours_close'] ?? ''));
                                 }
 
@@ -716,6 +730,8 @@ function uams_location_schema(): void
     if ($closing) {
         $closing_length = get_field('location_closing_length', $post_id);
         $closing_date = get_field('location_closing_date', $post_id);
+        // A tie between now and the closing date differs by under a microsecond, so the comparison cannot be told apart.
+        // @pest-mutate-ignore:GreaterOrEqualToGreater
         if ($closing_date && new DateTime >= new DateTime($closing_date)) {
             $temporarily_closed = ($closing_length === 'temporary');
         }

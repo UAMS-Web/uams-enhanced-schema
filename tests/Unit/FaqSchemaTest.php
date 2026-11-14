@@ -134,3 +134,18 @@ it('writes nothing for an empty list of questions', function (): void {
 
     expect((string) ob_get_clean())->toBe('');
 });
+
+it('types each question and its answer', function (): void {
+    when('wp_json_encode')->alias('json_encode');
+
+    ob_start();
+    uams_output_faq_schema([['question' => 'Q', 'answer' => 'A']]);
+    $out = (string) ob_get_clean();
+    $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
+
+    expect($schema['mainEntity'])->toBe([[
+        '@type' => 'Question',
+        'name' => 'Q',
+        'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'A'],
+    ]]);
+});

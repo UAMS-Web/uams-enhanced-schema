@@ -18,6 +18,16 @@ composer test:integration
 
 Run `composer setup:integration` before `composer stan` too: PHPStan reads the WordPress test classes from that install.
 
+### Mutation testing
+
+```bash
+composer mutate
+```
+
+This runs `pest tests/Unit/*Test.php --mutate --covered-only --path=uams-enhanced-schema.php` and needs a coverage driver (PCOV or Xdebug). It takes several minutes. The test files are named explicitly because a child process with no test file named crashes in Patchwork's directory wrapper and is scored as killed. The plugin is loaded from `tests/Pest.php` rather than the bootstrap, since a file the bootstrap loads is never mutated. The glob expands in a POSIX shell; the Windows form is not yet measured.
+
+Survivors that no test can tell apart from the original are annotated in the plugin file with `@pest-mutate-ignore` and a reason. Survivors in the condition and treatment provider and location blocks, and the unused physician `$treatments` list, are dead code tracked in #74, #75 and #70.
+
 
 ## CI
 

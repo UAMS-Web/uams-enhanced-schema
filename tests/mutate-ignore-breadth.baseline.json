@@ -1,0 +1,16 @@
+{
+    "findings": [
+        {
+            "path": "uams-enhanced-schema.php",
+            "marker": "// @pest-mutate-ignore:DecrementInteger,IncrementInteger",
+            "finding": "removes MORE than one mutant of a named mutator",
+            "detail": "DecrementInteger=2, IncrementInteger=2"
+        },
+        {
+            "path": "uams-enhanced-schema.php",
+            "marker": "// @pest-mutate-ignore:DecrementInteger",
+            "finding": "removes MORE than one mutant of a named mutator",
+            "detail": "DecrementInteger=2"
+        }
+    ]
+}

@@ -42,7 +42,9 @@ function location_schema_for(array $o = []): array
 
     when('wp_json_encode')->alias('json_encode');
     when('wp_strip_all_tags')->alias('strip_tags');
-    when('wp_reset_postdata')->justReturn();
+    when('wp_reset_postdata')->alias(static function (): void {
+        FakeWpQuery::$resets++;
+    });
     when('get_the_ID')->justReturn(10);
     when('get_post')->justReturn($o['parent'] ?? false);
     when('get_permalink')->alias(static fn ($id): string => "https://uamshealth.com/p/$id/");
@@ -534,3 +536,33 @@ it('does not mark a location closed for a permanent closing, a future date, no d
     'no date' => [['location_closing' => true, 'location_closing_length' => 'temporary']],
     'closing off' => [['location_closing' => false, 'location_closing_length' => 'temporary', 'location_closing_date' => '2020-01-01']],
 ]);
+
+it('keeps reading the weekly hours after a closed row', function (): void {
+    $schema = location_schema_for(location_with_hours(['location_hours' => [
+        ['day' => 'Monday', 'open' => '8:00 am', 'close' => '5:00 pm', 'closed' => true],
+        ['day' => 'Friday', 'open' => '8:00 am', 'close' => '5:00 pm'],
+    ]]));
+
+    expect($schema['openingHours'])->toBe(['Fr 08:00-17:00']);
+});
+
+it('writes an empty day for a modified-hours row with no day', function (): void {
+    $schema = location_schema_for(location_with_hours([
+        'location_modified_hours' => true,
+        'location_modified_hours_group' => [[
+            'location_modified_hours_times' => [['location_modified_hours_closed' => true]],
+        ]],
+    ]));
+
+    expect($schema['openingHoursSpecification'][0]['dayOfWeek'])->toBe('');
+});
+
+it('resets the post data after each related-posts query', function (): void {
+    location_schema_for(['fields' => [10 => ['location_conditions_cpt' => [1]]]]);
+    $afterOne = FakeWpQuery::$resets;
+
+    location_schema_for(['fields' => [10 => ['location_conditions_cpt' => [1], 'location_treatments_cpt' => [3]]]]);
+
+    expect($afterOne)->toBe(1)
+        ->and(FakeWpQuery::$resets)->toBe(2);
+});

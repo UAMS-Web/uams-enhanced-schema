@@ -28,6 +28,11 @@ final class FakeWpQuery
     public static array $built = [];
 
     /**
+     * How many times wp_reset_postdata() ran since the last reset().
+     */
+    public static int $resets = 0;
+
+    /**
      * The posts the query found.
      *
      * @var list<object>
@@ -53,5 +58,6 @@ final class FakeWpQuery
     {
         self::$titles = [];
         self::$built = [];
+        self::$resets = 0;
     }
 }

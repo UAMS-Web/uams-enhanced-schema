@@ -9,9 +9,22 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\TestCase;
+
 use function Brain\Monkey\Functions\when;
 use function Brain\Monkey\setUp;
 use function Brain\Monkey\tearDown;
+
+/**
+ * The hooks the plugin registered when it loaded, kept for later tests; null until it has loaded.
+ */
+final class PluginBoot
+{
+    /**
+     * @var array{footer: int|bool, stripping: int|bool}|null
+     */
+    public static ?array $hooks = null;
+}
 
 /**
  * Load the plugin file once per process, inside the current Brain Monkey session.
@@ -26,18 +39,15 @@ use function Brain\Monkey\tearDown;
  */
 function load_plugin(): array
 {
-    static $loaded = false;
-    static $boot = [];
-
-    if ($loaded) {
-        return $boot;
+    if (PluginBoot::$hooks !== null) {
+        return PluginBoot::$hooks;
     }
 
-    $loaded = true;
+    PluginBoot::$hooks = ['footer' => false, 'stripping' => false];
 
     when('plugin_dir_path')->justReturn(__DIR__.'/../');
     when('plugin_dir_url')->justReturn('https://example.test/wp-content/plugins/'.basename(dirname(__DIR__)).'/');
-    when('plugin_basename')->alias(static fn ($file): string => basename(dirname($file)).'/'.basename($file));
+    when('plugin_basename')->alias(static fn (string $file): string => basename(dirname($file)).'/'.basename($file));
     when('is_multisite')->justReturn(false);
     when('get_site_option')->alias(static fn ($key, $default = false) => $default);
     when('get_option')->alias(static fn ($key, $default = false) => $default);
@@ -63,12 +73,12 @@ function load_plugin(): array
     require_once __DIR__.'/../uams-enhanced-schema.php';
 
     // The hooks the file registers at load time, read inside the same session.
-    $boot = [
+    PluginBoot::$hooks = [
         'footer' => has_action('wp_footer', 'uams_enhanced_schema_output'),
         'stripping' => has_action('wp_loaded'),
     ];
 
-    return $boot;
+    return PluginBoot::$hooks;
 }
 
 /**
@@ -154,6 +164,10 @@ uses()
         load_plugin();
     })
     ->afterEach(function (): void {
+        if (! $this instanceof TestCase) {
+            throw new LogicException('Pest runs this hook on a test case.');
+        }
+
         $this->addToAssertionCount(Mockery::getContainer()->mockery_getExpectationCount());
 
         tearDown();

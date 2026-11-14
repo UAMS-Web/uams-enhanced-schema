@@ -26,7 +26,7 @@ function physician_term(string $name, string $slug = 'a-term'): object
  * `thumbnail` (a URL, or null for none), `meta` (the `_syndicated_api_data` value),
  * `education` (rows of the education repeater).
  *
- * @param  array{fields?: array<int, array<string, mixed>>, terms?: array<string, array<int, mixed>>, status?: array<int, string>, titles?: array<int, string>, thumbnail?: string|null, meta?: mixed, education?: list<array<string, mixed>>}  $o
+ * @param  array{fields?: array<int, array<array-key, mixed>>, terms?: array<string, array<int, mixed>>, status?: array<int, string>, titles?: array<int, string>, thumbnail?: string|null, meta?: mixed, education?: list<array<array-key, mixed>>}  $o
  * @return array<array-key, mixed>
  */
 function physician_schema_for(array $o = []): array

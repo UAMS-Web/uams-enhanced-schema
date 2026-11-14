@@ -26,7 +26,9 @@ function through_buffer(string $page, string $type): string
     });
 
     uams_enhanced_schema_register_stripping('replace');
-    expect($callback)->toBeCallable();
+    if (! is_callable($callback)) {
+        throw new LogicException('The wp_loaded callback was not registered.');
+    }
 
     ob_start();
     $callback();

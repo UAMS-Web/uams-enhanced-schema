@@ -12,7 +12,7 @@ use function Brain\Monkey\Functions\when;
 /**
  * Fake ACF repeater functions over the given rows, keyed by repeater name.
  *
- * @param  array<string, list<array<string, string>>>  $repeaters
+ * @param  array<string, list<array<array-key, mixed>>>  $repeaters
  */
 function fake_repeaters(array $repeaters): void
 {

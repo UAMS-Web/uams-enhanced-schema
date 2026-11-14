@@ -26,7 +26,7 @@ function content_writer(string $name): callable
  * Options: `fields` (ACF values by post id then field name), `terms` (degree terms by id;
  * `error` stands for a WP_Error), `status` and `titles` (by post id), `excerpt`, `content`.
  *
- * @param  array{fields?: array<int, array<string, mixed>>, terms?: array<int, mixed>, status?: array<int, string>, titles?: array<int, string>, excerpt?: string, content?: string}  $o
+ * @param  array{fields?: array<int, array<array-key, mixed>>, terms?: array<int, mixed>, status?: array<int, string>, titles?: array<int, string>, excerpt?: string, content?: string}  $o
  * @return array<array-key, mixed>
  */
 function content_schema_for(string $writer, array $o = []): array

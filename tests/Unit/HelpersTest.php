@@ -65,6 +65,9 @@ it('drops every id that is not an integer or a digit-only string', function (mix
     'an object' => [new stdClass],
     'a word' => ['abc'],
     'a negative number' => ['-4'],
+    'a negative integer' => [-4],
+    'zero' => [0],
+    'zero text' => ['0'],
     'a decimal' => ['4.5'],
     'an empty string' => [''],
 ]);
@@ -115,3 +118,91 @@ it('returns null for text that is not a time', function (string $input): void {
     'empty' => [''],
     'a word' => ['closed'],
 ]);
+
+it('reads text from a string, a number or nothing', function (mixed $value, string $expected): void {
+    expect(uams_text($value))->toBe($expected);
+})->with([
+    'a string' => ['72205', '72205'],
+    'an integer' => [72205, '72205'],
+    'a float' => [4.5, '4.5'],
+    'zero' => [0, '0'],
+    'a boolean' => [true, ''],
+    'null' => [null, ''],
+    'an array' => [['x'], ''],
+]);
+
+it('reads a number from a number or numeric text, and zero from anything else', function (mixed $value, int|float $expected): void {
+    expect(uams_number($value))->toBe($expected);
+})->with([
+    'an integer' => [42, 42],
+    'a float' => [4.5, 4.5],
+    'integer text' => ['42', 42],
+    'decimal text' => ['4.5', 4.5],
+    'a word' => ['many', 0],
+    'a boolean' => [true, 0],
+    'null' => [null, 0],
+    'an array' => [[3], 0],
+]);
+
+it('reads an id from an integer or digit-only text, and zero from anything else', function (mixed $value, int $expected): void {
+    expect(uams_id($value))->toBe($expected);
+})->with([
+    'an integer' => [7, 7],
+    'a negative integer' => [-7, -7],
+    'digit text' => ['7', 7],
+    'a word' => ['seven', 0],
+    'a decimal' => ['7.5', 0],
+    'empty text' => ['', 0],
+    'a float' => [7.0, 0],
+    'null' => [null, 0],
+]);
+
+it('reads an array as it is and anything else as an empty array', function (mixed $value, array $expected): void {
+    expect(uams_array($value))->toBe($expected);
+})->with([
+    'an array' => [['a' => 1], ['a' => 1]],
+    'an empty array' => [[], []],
+    'text' => ['x', []],
+    'false' => [false, []],
+    'null' => [null, []],
+]);
+
+it('reads a nested value out of arrays and objects', function (): void {
+    $tree = (object) ['data' => ['entities' => [(object) ['rating' => (object) ['value' => 4.5]]]]];
+
+    expect(uams_dig($tree, 'data', 'entities', 0, 'rating', 'value'))->toBe(4.5)
+        ->and(uams_dig(['a' => ['b' => 'c']], 'a', 'b'))->toBe('c')
+        ->and(uams_dig($tree))->toBe($tree);
+});
+
+it('reads null where a step of the path is missing or not a structure', function (mixed $tree): void {
+    expect(uams_dig($tree, 'data', 'entities', 0))->toBeNull();
+})->with([
+    'a missing key' => [(object) ['data' => []]],
+    'an array missing the key' => [['data' => ['entities' => []]]],
+    'a scalar in the way' => [['data' => 'text']],
+    'null' => [null],
+]);
+
+it('formats a date as YYYY-MM-DD', function (): void {
+    expect(uams_calendar_date('December 26, 2030'))->toBe('2030-12-26');
+});
+
+it('returns null for text that is not a date', function (string $input): void {
+    expect(uams_calendar_date($input))->toBeNull();
+})->with([
+    'empty' => [''],
+    'a word' => ['someday'],
+]);
+
+it('reads an ACF field as text for the given post', function (): void {
+    Brain\Monkey\Functions\expect('get_field')->once()->with('physician_npi', 12)->andReturn(1234567890);
+
+    expect(uams_field_text('physician_npi', 12))->toBe('1234567890');
+});
+
+it('reads an ACF field for the current post when no post is given', function (): void {
+    Brain\Monkey\Functions\expect('get_field')->once()->with('physician_npi', false)->andReturn('x');
+
+    expect(uams_field_text('physician_npi'))->toBe('x');
+});

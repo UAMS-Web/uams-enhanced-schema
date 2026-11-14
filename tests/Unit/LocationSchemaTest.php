@@ -46,6 +46,7 @@ function location_schema_for(array $o = []): array
         FakeWpQuery::$resets++;
     });
     when('get_the_ID')->justReturn(10);
+    when('get_post_field')->alias(static fn (string $field, object $post) => $post->$field);
     when('get_post')->justReturn($o['parent'] ?? false);
     when('get_permalink')->alias(static fn ($id): string => "https://uamshealth.com/p/$id/");
     when('get_the_title')->alias(static fn ($id = null): string => $id === null ? ($o['page_title'] ?? 'Clinic') : ($titles[$id] ?? "Title $id"));

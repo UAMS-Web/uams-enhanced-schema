@@ -13,6 +13,14 @@ use function Brain\Monkey\Functions\expect as expectCall;
 use function Brain\Monkey\Functions\when;
 
 /**
+ * Resolve a writer's function name to a callable.
+ */
+function content_writer(string $name): callable
+{
+    return is_callable($name) ? $name : throw new InvalidArgumentException("$name is not callable.");
+}
+
+/**
  * Run a content schema writer against a fake WordPress and return the decoded schema.
  *
  * Options: `fields` (ACF values by post id then field name), `terms` (degree terms by id;
@@ -46,7 +54,7 @@ function content_schema_for(string $writer, array $o = []): array
     when('uams_maybe_faq_schema')->justReturn();
 
     ob_start();
-    $writer();
+    content_writer($writer)();
     $out = (string) ob_get_clean();
 
     $schema = json_decode((string) preg_replace('~^\s*<script[^>]*>|</script>\s*$~', '', $out), true);
@@ -165,7 +173,7 @@ it('hands the page to the FAQ writer after its own schema', function (string $wr
     expectCall('uams_maybe_faq_schema')->once()->with(10);
 
     ob_start();
-    $writer();
+    content_writer($writer)();
     ob_end_clean();
 })->with(array_map(static fn (array $w): array => [$w[0]], content_writers()));
 

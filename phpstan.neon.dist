@@ -62,8 +62,7 @@ parameters:
     level: 0
 
     excludePaths:
-        analyseAndScan:
-            - tests
+        analyse:
             - vendor
 
     # Filled: the directories and files holding first-party PHP, including
@@ -72,14 +71,15 @@ parameters:
     # modifications.
     paths:
         - uams-enhanced-schema.php
+        - tests
 
     # Indexed for symbols but not analyzed. `php-stubs/wordpress-stubs` covers
     # core's runtime surface and stops there: `WP_UnitTestCase`, the factories
     # and `tests_add_filter()` ship with WordPress' test suite, not with
     # WordPress. Uncomment when the tests run on wp-phpunit, or the Integration
     # suite analyzes as a pile of undefined classes.
-    # scanDirectories:
-    #     - vendor/wp-phpunit/wp-phpunit/includes
+    scanDirectories:
+        - vendor/wp-phpunit/wp-phpunit/includes
 
     # WP-CLI: uncomment after `composer require --dev php-stubs/wp-cli-stubs`.
     # Paths are relative to this neon file (repository root). wordpress-stubs

@@ -9,14 +9,15 @@ declare(strict_types=1);
 
 namespace UamsEnhancedSchema\Tests\Unit;
 
-use Brain\Monkey\Functions;
 use UamsEnhancedSchema\Tests\Support\UnitTestCase;
+
+use function Brain\Monkey\Functions\when;
 
 final class OutputJsonLdTest extends UnitTestCase
 {
     private function render(array $data): string
     {
-        Functions\when('wp_json_encode')->alias('json_encode');
+        when('wp_json_encode')->alias('json_encode');
 
         ob_start();
         uams_output_jsonld($data);

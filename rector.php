@@ -116,6 +116,7 @@ return RectorConfig::configure()
     // modifications.
     ->withPaths([
         __DIR__.'/uams-enhanced-schema.php',
+        __DIR__.'/tests',
     ])
     // WordPress plugins: also analyze the PHP files at the repository root (the
     // plugin header file). Uncomment for those.

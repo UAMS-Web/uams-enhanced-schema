@@ -48,7 +48,7 @@ function physician_schema_for(array $o = []): array
     when('plugins_url')->alias(static fn (string $path): string => "https://uamshealth.com/plugins/$path");
     when('has_post_thumbnail')->justReturn(isset($o['thumbnail']));
     when('get_the_post_thumbnail_url')->alias(static fn ($id, $size = null) => $size === 'large' ? ($o['thumbnail'] ?? false) : false);
-    when('get_post_meta')->justReturn($o['meta'] ?? '');
+    when('get_post_meta')->alias(static fn ($id, $key = '', $single = false) => $single ? ($o['meta'] ?? '') : [$o['meta'] ?? '']);
     when('is_wp_error')->alias(static fn ($thing): bool => $thing === 'error');
     when('get_term')->alias(static fn ($id, string $taxonomy) => $terms[$taxonomy][$id] ?? false);
     when('get_post_status')->alias(static fn ($id) => $status[$id] ?? false);
@@ -82,14 +82,14 @@ function physician_schema_for(array $o = []): array
 /**
  * Press Ganey rating data as the API client stores it.
  */
-function physician_rating(int $count, mixed $value = 4.5, int $comments = 0, string $code = '200'): object
+function physician_rating(int $count, mixed $value = 4.5, ?int $comments = 0, int|string $code = '200'): object
 {
     return json_decode((string) json_encode([
         'status' => ['code' => $code],
         'data' => ['entities' => [[
             'totalRatingCount' => $count,
             'overallRating' => ['value' => $value],
-            'totalCommentCount' => $comments,
+            ...($comments === null ? [] : ['totalCommentCount' => $comments]),
         ]]],
     ]));
 }
@@ -572,3 +572,62 @@ it('writes no rating below 30 ratings, without a value, without a 200 status, or
     'no data' => ['123', ''],
     'no status' => ['123', (object) ['data' => (object) []]],
 ]);
+
+it('ignores related-post and location fields that are not lists', function (string $field): void {
+    $schema = physician_schema_for([
+        'fields' => [10 => [$field => '50']],
+        'status' => [50 => 'publish'],
+    ]);
+
+    expect($schema)->not->toHaveKeys(['medicalSpecialty', 'knowsAbout', 'workLocation', 'address']);
+})->with(['conditions' => ['physician_conditions_cpt'], 'treatments' => ['physician_treatments_cpt'], 'locations' => ['physician_locations']]);
+
+it('falls back to Medical Education for an education type term that is an error or missing', function (mixed $term): void {
+    $schema = physician_schema_for([
+        'education' => [['school' => 1, 'education_type' => 2]],
+        'terms' => ['school' => [1 => physician_term('UAMS')], 'educationtype' => [2 => $term]],
+    ]);
+
+    expect($schema['hasCredential'][0]['educationalLevel'])->toBe('Medical Education');
+})->with(['error' => ['error'], 'missing' => [false]]);
+
+it('writes an empty address for a location with no address fields', function (): void {
+    $schema = physician_schema_for([
+        'fields' => [10 => ['physician_locations' => [50]]],
+        'status' => [50 => 'publish'],
+    ]);
+
+    expect($schema['address'])->toBe([
+        '@type' => 'PostalAddress',
+        'streetAddress' => '',
+        'addressLocality' => '',
+        'addressRegion' => '',
+        'postalCode' => '',
+    ]);
+});
+
+it('trims the street when only the first address line is set', function (): void {
+    $schema = physician_schema_for([
+        'fields' => [10 => ['physician_locations' => [50]], 50 => ['location_address_1' => '1 Main St']],
+        'status' => [50 => 'publish'],
+    ]);
+
+    expect($schema['address']['streetAddress'])->toBe('1 Main St');
+});
+
+it('writes a rating when the status code is the integer 200', function (): void {
+    $schema = physician_schema_for([
+        'fields' => [10 => ['physician_npi' => '123']],
+        'meta' => physician_rating(30, 4.5, 0, 200),
+    ]);
+
+    expect($schema)->toHaveKey('aggregateRating');
+});
+
+it('leaves the review count out when the API sends no comment count, and writes one comment', function (): void {
+    $without = physician_schema_for(['fields' => [10 => ['physician_npi' => '123']], 'meta' => physician_rating(30, 4.5, null)]);
+    $one = physician_schema_for(['fields' => [10 => ['physician_npi' => '123']], 'meta' => physician_rating(30, 4.5, 1)]);
+
+    expect($without['aggregateRating'])->not->toHaveKey('reviewCount')
+        ->and($one['aggregateRating']['reviewCount'])->toBe('1');
+});

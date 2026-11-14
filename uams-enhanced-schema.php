@@ -3,6 +3,7 @@
 declare(strict_types=1);
 /**
  * Plugin Name: UAMS Enhanced Schema Markup
+ * Plugin URI:  https://github.com/UAMS-Web/uams-enhanced-schema
  * Description: Replaces existing provider/location schema with corrected, comprehensive JSON-LD.
  *              Designed as throwaway — Statamic migration will use Blade partials instead.
  * Version:     1.0.0

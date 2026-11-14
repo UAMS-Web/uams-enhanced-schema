@@ -36,6 +36,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # The full mutation pass, weekly, on the default branch: it catches decay that no pull request
+  # touches. A scheduled run mutates everything `composer mutate` covers, under the chain's
+  # default full-run timeout; a pull request keeps the 45-minute cap.
+  schedule:
+    - cron: '17 7 * * 1'
 
 # A new push to a pull request cancels that pull request's stale run. Every other run gets a
 # group of its own, keyed on the commit, so a later push never cancels it.

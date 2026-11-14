@@ -34,7 +34,10 @@
         ],
         "test:unit": "pest",
         "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
-        "mutate": "pest tests/Unit/*Test.php --mutate --covered-only --path=uams-enhanced-schema.php",
+        "mutate": [
+            "@putenv COMPOSER_PROCESS_TIMEOUT=0",
+            "pest tests/Unit/*Test.php --mutate --covered-only --path=uams-enhanced-schema.php"
+        ],
         "stan": "phpstan analyse --no-progress --memory-limit=2G",
         "refactor": "rector",
         "refactor:sweep": "rector --clear-cache --config=rector-sweep.php",

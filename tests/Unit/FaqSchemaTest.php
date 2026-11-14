@@ -62,10 +62,10 @@ function faq_questions(?int $postId = 7): ?array
     expect($schema['@context'])->toBe('https://schema.org')
         ->and($schema['@type'])->toBe('FAQPage');
 
-    return array_map(
-        static fn (array $q): array => ['name' => $q['name'], 'text' => $q['acceptedAnswer']['text']],
+    return array_values(array_map(
+        static fn (array $q): array => ['name' => (string) $q['name'], 'text' => (string) $q['acceptedAnswer']['text']],
         $schema['mainEntity']
-    );
+    ));
 }
 
 it('reads the faq repeater', function (): void {

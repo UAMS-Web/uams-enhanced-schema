@@ -98,6 +98,9 @@ function uams_enhanced_schema_output(): void
 function uams_physician_schema(): void
 {
     $post_id = get_the_ID();
+    if (! $post_id) {
+        return;
+    }
 
     // ── Name ──
     $first = get_field('physician_first_name', $post_id) ?: '';
@@ -471,6 +474,9 @@ function uams_physician_schema(): void
 function uams_location_schema(): void
 {
     $post_id = get_the_ID();
+    if (! $post_id) {
+        return;
+    }
 
     // Parent location logic (child locations may inherit address)
     $has_parent = get_field('location_parent', $post_id);
@@ -656,7 +662,7 @@ function uams_location_schema(): void
             'order' => 'ASC',
         ]);
         foreach ($cond_query->posts as $c) {
-            $specialties[] = $c->post_title;
+            $specialties[] = get_post_field('post_title', $c);
         }
 
         wp_reset_postdata();
@@ -673,7 +679,7 @@ function uams_location_schema(): void
             'order' => 'ASC',
         ]);
         foreach ($treat_query->posts as $t) {
-            $specialties[] = $t->post_title;
+            $specialties[] = get_post_field('post_title', $t);
         }
 
         wp_reset_postdata();
@@ -805,6 +811,10 @@ function uams_location_schema(): void
 function uams_condition_schema(): void
 {
     $post_id = get_the_ID();
+    if (! $post_id) {
+        return;
+    }
+
     $title = get_the_title();
 
     // Description from excerpt or content
@@ -895,6 +905,10 @@ function uams_condition_schema(): void
 function uams_treatment_schema(): void
 {
     $post_id = get_the_ID();
+    if (! $post_id) {
+        return;
+    }
+
     $title = get_the_title();
 
     // Description

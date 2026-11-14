@@ -13,7 +13,7 @@ use function Brain\Monkey\Functions\when;
  * Run the breadcrumb for a post and return the decoded list items.
  *
  * @param  array<string, mixed>  $fields  ACF values by field name.
- * @return list<array<string, mixed>>
+ * @return non-empty-list<array<string, mixed>>
  */
 function breadcrumb_for(string $postType, array $fields = [], string $title = 'Page title'): array
 {

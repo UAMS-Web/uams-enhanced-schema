@@ -882,9 +882,6 @@ function uams_condition_schema(): void
         'url' => 'https://uamshealth.com',
     ];
 
-    // Remove null values
-    $schema = array_filter($schema, fn ($v): bool => $v !== null);
-
     uams_output_jsonld($schema);
 
     // If the page has FAQ-structured content, output FAQPage schema

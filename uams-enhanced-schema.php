@@ -1253,7 +1253,9 @@ function uams_output_jsonld($data): void
  */
 function uams_format_phone_schema($phone)
 {
-    $digits = preg_replace('/[^0-9]/', '', $phone);
+    // preg_match_all always fills $found, where preg_replace can return null on an engine error.
+    preg_match_all('/[0-9]/', $phone, $found);
+    $digits = implode('', $found[0]);
     if (strlen($digits) === 10) {
         return '+1-'.substr($digits, 0, 3).'-'.substr($digits, 3, 3).'-'.substr($digits, 6);
     }

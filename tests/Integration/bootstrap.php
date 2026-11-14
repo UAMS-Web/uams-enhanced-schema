@@ -3,12 +3,15 @@
 /**
  * Integration bootstrap: boots WordPress through wp-phpunit.
  *
- * Required by tests/bootstrap.php, after Composer's autoloader, only in the
- * Integration process. Configuration comes from WP_TESTS_* environment
- * variables, read in tests/Integration/wp-tests-config.php.
+ * Named by tests/Integration/phpunit.xml and run on PHPUnit 9.6 from this
+ * directory's own Composer setup (composer setup:integration). Configuration
+ * comes from WP_TESTS_* environment variables, read in
+ * tests/Integration/wp-tests-config.php.
  */
 
 declare(strict_types=1);
+
+require_once __DIR__.'/vendor/autoload.php';
 
 /*
  * Locate WordPress. Unset, WP_TESTS_ABSPATH defaults to the install this

@@ -28,7 +28,7 @@ abstract class IntegrationTestCase extends WP_UnitTestCase
      *
      * @return WP_UnitTest_Factory
      */
-    public static function factory()
+    protected static function factory()
     {
         return parent::factory();
     }

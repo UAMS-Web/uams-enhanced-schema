@@ -56,14 +56,15 @@
       ]
     },
     {
-      "name": "phpunit",
+      "name": "pest",
       "run": "composer test:unit",
       "paths": [
         "**/*.php",
         "!vendor/**",
         "phpunit.xml*",
         "composer.lock",
-        "tests/**"
+        "tests/**",
+        "!tests/Integration/vendor/**"
       ]
     }
   ]

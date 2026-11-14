@@ -34,7 +34,7 @@ includes:
     # pestphp/pest. It registers Pest's expectation classes as universal object
     # crates, so chained expectations analyze instead of reporting undefined
     # properties. Uncomment together with the Pest entries under ignoreErrors.
-    # - vendor/pestphp/pest/extension.neon
+    - vendor/pestphp/pest/extension.neon
 
 parameters:
     scanFiles:
@@ -64,6 +64,7 @@ parameters:
     excludePaths:
         analyse:
             - vendor
+            - tests/Integration/vendor
 
     # Filled: the directories and files holding first-party PHP, including
     # the plugin header file at the root. Include tests: test bugs are real
@@ -79,7 +80,7 @@ parameters:
     # WordPress. Uncomment when the tests run on wp-phpunit, or the Integration
     # suite analyzes as a pile of undefined classes.
     scanDirectories:
-        - vendor/wp-phpunit/wp-phpunit/includes
+        - tests/Integration/vendor/wp-phpunit/wp-phpunit/includes
 
     # WP-CLI: uncomment after `composer require --dev php-stubs/wp-cli-stubs`.
     # Paths are relative to this neon file (repository root). wordpress-stubs
@@ -173,11 +174,11 @@ parameters:
         #
         # `$this` inside a closure passed to `uses()->beforeEach()` /
         # `afterEach()` is bound by Pest at runtime, which PHPStan cannot see.
-        # -
-        #     identifier: variable.undefined
-        #     message: '#^Undefined variable: \$this$#'
-        #     path: tests/Pest.php
-        #     reportUnmatched: false
+        -
+            identifier: variable.undefined
+            message: '#^Undefined variable: \$this$#'
+            path: tests/Pest.php
+            reportUnmatched: false
         # `$this` inside an `it()` closure analyzes as PHPUnit's TestCase
         # whatever `uses(...)->in('Integration')` binds, so a WP_UnitTestCase
         # method such as `go_to()` reads as undefined. Scoped to that suite.

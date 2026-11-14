@@ -1242,7 +1242,11 @@ function uams_number($value)
         return $value;
     }
 
-    return is_string($value) && is_numeric($value) ? $value + 0 : 0;
+    if (! is_string($value) || ! is_numeric($value)) {
+        return 0;
+    }
+
+    return str_contains($value, '.') ? (float) $value : (int) $value;
 }
 
 /**

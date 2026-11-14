@@ -1012,6 +1012,11 @@ function uams_treatment_schema(): void
 //  to output FAQ schema for manually-curated Q&A blocks.
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Write FAQ schema for the post when it carries an FAQ repeater or FAQ-shaped HTML.
+ *
+ * @param  int|null  $post_id  The post to read, or null for the current post.
+ */
 function uams_maybe_faq_schema($post_id = null): void
 {
     if (! $post_id) {
@@ -1047,6 +1052,11 @@ function uams_maybe_faq_schema($post_id = null): void
     }
 }
 
+/**
+ * Write FAQPage schema for a list of questions.
+ *
+ * @param  list<array{question: string, answer: string}>  $questions
+ */
 function uams_output_faq_schema($questions): void
 {
     if (empty($questions)) {
@@ -1207,6 +1217,11 @@ function uams_organization_schema(): void
 //  HELPERS
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Print a JSON-LD script element.
+ *
+ * @param  array<string, mixed>  $data  The schema to encode.
+ */
 function uams_output_jsonld($data): void
 {
     echo "\n".'<script type="application/ld+json">'."\n";
@@ -1216,6 +1231,12 @@ function uams_output_jsonld($data): void
     echo "\n</script>\n";
 }
 
+/**
+ * Format a phone number as +1-NNN-NNN-NNNN when it has ten digits, else return it as given.
+ *
+ * @param  string  $phone
+ * @return string
+ */
 function uams_format_phone_schema($phone)
 {
     $digits = preg_replace('/[^0-9]/', '', $phone);
@@ -1230,6 +1251,11 @@ function uams_format_phone_schema($phone)
     return $phone;
 }
 
+/**
+ * Abbreviate a day name for schema.org opening hours, or return an empty string for an unknown day.
+ *
+ * @param  string  $day
+ */
 function uams_day_abbreviation($day): string
 {
     $map = [

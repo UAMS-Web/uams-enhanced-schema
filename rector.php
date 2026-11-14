@@ -122,6 +122,7 @@ return RectorConfig::configure()
     // plugin header file). Uncomment for those.
     ->withRootFiles()
     ->withSkip([
+        __DIR__.'/tests/Integration/vendor',
         ...$neverRules,
         ...($isSweepProfile ? [] : $sweepOnlyRules),
     ])

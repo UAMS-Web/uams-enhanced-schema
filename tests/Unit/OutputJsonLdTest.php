@@ -37,3 +37,11 @@ it('hex-escapes ampersands and leaves slashes readable', function (): void {
     expect($out)->toContain('"https://example.test/a/b?x=1\u0026y=2"')
         ->and($out)->not->toContain('\/');
 });
+
+it('leaves non-ASCII characters readable', function (): void {
+    expect(render_jsonld(['name' => 'José Núñez']))->toContain('"name": "José Núñez"');
+});
+
+it('wraps pretty-printed JSON in a script element', function (): void {
+    expect(render_jsonld(['a' => 1]))->toBe("\n<script type=\"application/ld+json\">\n{\n    \"a\": 1\n}\n</script>\n");
+});

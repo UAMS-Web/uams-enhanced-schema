@@ -371,12 +371,10 @@ function uams_physician_schema(): void
         $schema['honorificPrefix'] = $prefix;
     }
 
-    if ($suffix) {
-        $schema['honorificSuffix'] = $suffix;
-    }
-
-    if ($degrees !== []) {
-        $schema['honorificSuffix'] = implode(', ', $degrees);
+    // The suffix comes first and the degrees follow: `Jr., MD, PhD`.
+    $honorific_suffix = implode(', ', array_filter([$suffix, ...$degrees], static fn (string $part): bool => $part !== ''));
+    if ($honorific_suffix !== '') {
+        $schema['honorificSuffix'] = $honorific_suffix;
     }
 
     if ($clinical_title) {

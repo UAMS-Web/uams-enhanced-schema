@@ -147,7 +147,7 @@ it('leaves out the optional name parts that are empty', function (): void {
         ->and(schema_at($schema, 'name'))->toBe('Ada Lovelace');
 });
 
-it('appends degrees to the name and lets them replace the suffix', function (): void {
+it('appends degrees to the name and lists them after the suffix', function (): void {
     $schema = physician_schema_for([
         'fields' => [10 => [
             'physician_first_name' => 'Ada',
@@ -159,7 +159,7 @@ it('appends degrees to the name and lets them replace the suffix', function (): 
     ]);
 
     expect(schema_at($schema, 'name'))->toBe('Ada Lovelace, MD, PhD')
-        ->and(schema_at($schema, 'honorificSuffix'))->toBe('MD, PhD');
+        ->and(schema_at($schema, 'honorificSuffix'))->toBe('Jr., MD, PhD');
 });
 
 it('skips a degree whose term is missing or an error, and a degree field that is not a list', function (mixed $degrees): void {

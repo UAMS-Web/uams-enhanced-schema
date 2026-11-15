@@ -207,3 +207,14 @@ it('reads an ACF field for the current post when no post is given', function ():
 
     expect(uams_field_text('physician_npi'))->toBe('x');
 });
+
+it('joins the name parts that are not empty with single spaces', function (string $first, string $middle, string $last, string $expected): void {
+    expect(uams_full_name($first, $middle, $last))->toBe($expected);
+})->with([
+    'all three' => ['Ada', 'M.', 'Lovelace', 'Ada M. Lovelace'],
+    'no middle name' => ['Ada', '', 'Lovelace', 'Ada Lovelace'],
+    'no first name' => ['', 'M.', 'Lovelace', 'M. Lovelace'],
+    'no last name' => ['Ada', 'M.', '', 'Ada M.'],
+    'a name of 0' => ['0', '', 'Lovelace', '0 Lovelace'],
+    'none' => ['', '', '', ''],
+]);

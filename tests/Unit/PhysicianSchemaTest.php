@@ -144,7 +144,7 @@ it('leaves out the optional name parts that are empty', function (): void {
     $schema = physician_schema_for(['fields' => [10 => ['physician_first_name' => 'Ada', 'physician_last_name' => 'Lovelace']]]);
 
     expect($schema)->not->toHaveKeys(['additionalName', 'honorificPrefix', 'honorificSuffix'])
-        ->and(schema_at($schema, 'name'))->toBe('Ada  Lovelace');
+        ->and(schema_at($schema, 'name'))->toBe('Ada Lovelace');
 });
 
 it('appends degrees to the name and lets them replace the suffix', function (): void {
@@ -158,7 +158,7 @@ it('appends degrees to the name and lets them replace the suffix', function (): 
         'terms' => ['degree' => [1 => physician_term('MD'), 2 => physician_term('PhD')]],
     ]);
 
-    expect(schema_at($schema, 'name'))->toBe('Ada  Lovelace, MD, PhD')
+    expect(schema_at($schema, 'name'))->toBe('Ada Lovelace, MD, PhD')
         ->and(schema_at($schema, 'honorificSuffix'))->toBe('MD, PhD');
 });
 

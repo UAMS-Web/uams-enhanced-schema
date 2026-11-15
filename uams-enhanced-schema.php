@@ -119,7 +119,7 @@ function uams_physician_schema(): void
         }
     }
 
-    $full_name = trim("$first $middle $last");
+    $full_name = uams_full_name($first, $middle, $last);
     $display_name = $full_name;
     if ($degrees !== []) {
         $display_name .= ', '.implode(', ', $degrees);
@@ -1122,7 +1122,7 @@ function uams_breadcrumb_schema(): void
         $first = uams_field_text('physician_first_name', $post_id);
         $middle = uams_field_text('physician_middle_name', $post_id);
         $last = uams_field_text('physician_last_name', $post_id);
-        $full_name = trim("$first $middle $last");
+        $full_name = uams_full_name($first, $middle, $last);
 
         $degree_ids = get_field('physician_degree', $post_id);
         $degrees = [];
@@ -1342,6 +1342,14 @@ function uams_rows($value): array
 function uams_string($value): string
 {
     return is_string($value) ? $value : '';
+}
+
+/**
+ * Join the name parts that are not empty with single spaces.
+ */
+function uams_full_name(string ...$parts): string
+{
+    return implode(' ', array_filter($parts, static fn (string $part): bool => $part !== ''));
 }
 
 /**

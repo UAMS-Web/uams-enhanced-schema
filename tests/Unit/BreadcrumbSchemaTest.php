@@ -117,8 +117,7 @@ it('names a provider without a middle name or degrees', function (mixed $degrees
         'physician_degree' => $degrees,
     ]);
 
-    // Pinned as-is: an empty middle name leaves two spaces between first and last.
-    expect(end($items)['name'])->toBe('Ada  Lovelace');
+    expect(end($items)['name'])->toBe('Ada Lovelace');
 })->with([
     'no degree field' => [false],
     'empty list' => [[]],
@@ -136,7 +135,7 @@ it('skips a degree term that is an error', function (): void {
         'physician_degree' => [1],
     ]);
 
-    expect(end($items)['name'])->toBe('Ada  Lovelace');
+    expect(end($items)['name'])->toBe('Ada Lovelace');
 });
 
 it('trims a provider name that has only a first name', function (): void {

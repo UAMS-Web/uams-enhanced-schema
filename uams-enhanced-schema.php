@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin URI:  https://github.com/UAMS-Web/uams-enhanced-schema
  * Description: Replaces existing provider/location schema with corrected, comprehensive JSON-LD.
  *              Designed as throwaway — Statamic migration will use Blade partials instead.
- * Version:     1.0.0
+ * Version:     1.0.1
  * Requires PHP: 8.2
  * Author:      UAMS Web Services
  * Author URI:  https://communications.uams.edu/web/

@@ -29,8 +29,9 @@ A `Physician` block, with `memberOf` naming UAMS Health.
 
 | Property | Source |
 | --- | --- |
-| `name` | first, middle and last name, then the degrees: `<First> <Middle> <Last>, MD, PhD` |
-| `givenName`, `familyName`, `additionalName` | `physician_first_name`, `physician_last_name`, `physician_middle_name` |
+| `name` | first, middle and last name, then the degrees: `<First> <Middle> <Last>, MD, PhD`; always written, empty when the name fields are |
+| `givenName`, `familyName` | `physician_first_name`, `physician_last_name`; always written, even when empty |
+| `additionalName` | `physician_middle_name` |
 | `honorificPrefix` | `physician_prefix` |
 | `honorificSuffix` | `physician_suffix`, then the degrees: `Jr., MD, PhD` |
 | `url` | the page's permalink, always |
@@ -59,16 +60,16 @@ A `MedicalClinic` block, with `isPartOf` naming UAMS Health.
 | --- | --- |
 | `name`, `url` | the page title and permalink, always |
 | `logo` | the theme's UAMS Health logo, always |
-| `image` | the featured image at `large` size: the parent location's, unless the location overrides the parent's image with its own |
+| `image` | the featured image at `large` size: the location's own; for a child location, the parent's, unless both `location_image_override_parent` and `location_image_override_parent_featured` are set, which keeps the child's own |
 | `description` | `location_short_desc`; without it, `location_about` cut to 250 characters; HTML stripped |
 | `address` | the location's address, or its parent's, with `addressCountry` `US`, always |
-| `geo` | the latitude and longitude of `location_map` |
+| `geo` | the latitude and longitude of `location_map`, read from the parent location on a child location, as the address is |
 | `telephone` | `location_phone`, formatted for schema |
 | `openingHours` | the rows of `location_hours_group`, skipping closed days: `Mo 08:00-17:00`; `Mo-Su 00:00-23:59` for a location open around the clock |
 | `openingHoursSpecification` | the modified hours of `location_hours_group`, with their start and end dates |
 | `specialOpeningHoursSpecification` | a closed-all-week entry, when the location is marked as closing temporarily and its closing date has passed |
 | `medicalSpecialty` | the titles of the published conditions in `location_conditions_cpt` and treatments in `location_treatments_cpt` |
-| `availableService` | up to 50 published providers who list this location, each as a `Physician` with name and degrees |
+| `availableService` | the providers in the location's own `physician_locations` field, each as a `Physician` with name and degrees: the first 50 entries are taken, then any that are not published are dropped |
 | `isPartOf` | UAMS Health, always |
 
 A location whose hours are marked as variable gets no hours at all.
@@ -97,7 +98,7 @@ A `MedicalProcedure` block, with `isPartOf` naming UAMS Health, then an [FAQ blo
 | `alternateName` | each row of `treatment_procedure_alternate`, with commas removed |
 | `code`, `sameAs` | `medline_code_type` and `medline_code_id`, as on condition pages |
 | `indication` | the published conditions in `treatment_conditions` |
-| `availableService` | up to 20 published locations in `treatment_procedure_locations`, each as a `MedicalClinic` |
+| `availableService` | the locations in `treatment_procedure_locations`, each as a `MedicalClinic`: the first 20 entries are taken, then any that are not published are dropped |
 | `isPartOf` | UAMS Health, always |
 
 ## FAQ block
@@ -108,11 +109,13 @@ An `FAQPage` block whose `mainEntity` is one `Question` per row, each with an `a
 
 A `BreadcrumbList` on every single provider, location, condition, treatment and expertise page:
 
-1. UAMS Health, linking to the home page.
-2. The section for the post type: Find a Doctor, Locations, Conditions, Treatments or Areas of Expertise, linking to its archive.
+1. UAMS Health, linking to the UAMS Health home page.
+2. The section for the post type: Find a Doctor, Locations, Conditions, Treatments or Areas of Expertise, linking to its archive on the UAMS Health site.
 3. On a location with a parent location, the parent, linking to its page.
 4. The page itself, with no link: the provider's name and degrees, or the page title.
 
+The links in the first two items are fixed in the plugin file, not built from the site's own address, so on any other copy of the site they still point at the UAMS Health site.
+
 ## Home page
 
-A `MedicalOrganization` block for UAMS Health: its name and legal name, URL, logo, social profiles, postal address, main telephone and an appointments `ContactPoint`. The values are fixed in the plugin file, not read from the site.
+A `MedicalOrganization` block for UAMS Health: its name and legal name, URL, logo, social profiles, postal address, main telephone and an appointments `ContactPoint`. The values are fixed in the plugin file, except the logo, which is read from the active theme.

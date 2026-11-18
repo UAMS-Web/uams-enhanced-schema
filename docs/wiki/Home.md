@@ -1,4 +1,4 @@
-UAMS Enhanced Schema writes schema.org JSON-LD for the provider, location, condition and treatment pages of a WordPress site that runs the Find-a-Doc plugin, and an organization block for the home page. In its default mode it also removes the older inline schema those templates print, so each page carries one corrected block instead of two.
+UAMS Enhanced Schema writes schema.org JSON-LD for the provider, location, condition and treatment pages of a WordPress site that runs the Find-a-Doc plugin, and an organization block for the home page. In its default mode it also removes the older inline schema those templates print, so a page carries the corrected schema without the old block beside it.
 
 This wiki holds the documentation: a walkthrough, task guides, the reference and troubleshooting. The [README](https://github.com/UAMS-Web/uams-enhanced-schema#readme) keeps the overview, the requirements, installation and the development notes.
 

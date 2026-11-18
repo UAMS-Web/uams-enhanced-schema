@@ -6,7 +6,7 @@ The plugin runs in one of two modes, set by the `UAMS_SCHEMA_MODE` constant. The
 | --- | --- | --- |
 | Original inline schema on provider and location pages | removed | kept |
 | The plugin's own blocks | written | written |
-| Result on a provider or location page | one block from the plugin | the original block and the plugin's block |
+| Result on a provider or location page | the plugin's blocks only | the original block and the plugin's blocks |
 
 **Note:** the comment at the top of the plugin file describes safe mode as adding only the BreadcrumbList, FAQPage and Organization blocks. The code does not do that: in safe mode every block on [Schema by page type](Schema-by-page-type.md) is still written, and only the removal is skipped. This page describes what the code does.
 
@@ -29,7 +29,7 @@ Use safe mode when another plugin or the theme already depends on the original i
 
 2. Open a provider page's source. The original block, with `"@context": "http://www.schema.org"`, is back, and the plugin's `Physician` block still follows it in the footer.
 
-Any value other than `'replace'` behaves as safe mode does: nothing is removed.
+Any other string behaves as safe mode does: nothing is removed. The value must be a string; a `true`, `false` or number stops the plugin with a type error when it loads.
 
 ## Reference
 

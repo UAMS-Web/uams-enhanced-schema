@@ -1,5 +1,24 @@
 # UAMS Enhanced Schema
 
+A WordPress plugin that writes corrected schema.org JSON-LD for the provider, location, condition and treatment pages of a site running the Find-a-Doc plugin, and an organization block for the home page. In its default mode it also removes the older inline schema those templates print. It is a stopgap until the site moves to Statamic.
+
+The documentation is in the [wiki](https://github.com/UAMS-Web/uams-enhanced-schema/wiki): a walkthrough, the two modes, FAQ schema, the reference for every block and troubleshooting.
+
+## Requirements
+
+- WordPress 6.8 or later.
+- PHP 8.2 or later.
+- The Find-a-Doc plugin and Advanced Custom Fields, whose post types, taxonomies and fields the schema is read from.
+
+## Installation
+
+The plugin is one file, `uams-enhanced-schema.php`. Install it either way:
+
+- **As a plugin:** install the GitHub download into `wp-content/plugins/` and activate it.
+- **As a must-use plugin:** copy `uams-enhanced-schema.php` into `wp-content/mu-plugins/`. It loads without activation.
+
+It has no settings screen. To keep the original inline schema, see [Choosing replace or safe mode](https://github.com/UAMS-Web/uams-enhanced-schema/wiki/Choosing-replace-or-safe-mode) in the wiki.
+
 ## Tests
 
 ```bash

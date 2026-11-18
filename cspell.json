@@ -1,0 +1,24 @@
+// Spell-check configuration for this repository's prose (#105). Every entry below is a name that
+// cannot be reworded, per the american-english-prose rule: no entry admits a spelling variant.
+{
+  "version": "0.2",
+  "language": "en-US",
+  "ignorePaths": ["vendor/**", "tests/Integration/vendor/**", "composer.lock", "tests/Integration/composer.lock"],
+  "words": [
+    // The organization, and the plugin's slug and function prefix
+    "UAMS",
+    "uams",
+    // Press Ganey, the patient-rating vendor whose data the Physician block reads
+    "Ganey",
+    // MedlinePlus, the coding system named in the code property, and the ACF field prefix `medline_`
+    "Medline",
+    "medline",
+    // The CMS the site is moving to
+    "Statamic",
+    // Tool names in the README's development notes
+    "PCOV",
+    "phpunit",
+    // A developer credited in the README
+    "Passmore"
+  ]
+}
